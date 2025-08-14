@@ -3,11 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { DocumentProvider } from "@/contexts/DocumentContext";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { SignUpForm } from "@/components/auth/SignUpForm";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import { useAuth } from "./contexts/UseContext";
+import { AppProvider } from "./contexts/Provider";
 
 const queryClient = new QueryClient();
 
@@ -22,19 +23,20 @@ const AppContent = () => {
     );
   }
 
-  if (!user) {
-    return <LoginForm />;
-  }
-
   return (
-    <DocumentProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      {!user ? (
+        <Routes>
+          <Route path="/signup" element={<SignUpForm />} />
+          <Route path="*" element={<LoginForm />} />
+        </Routes>
+      ) : (
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </DocumentProvider>
+      )}
+    </BrowserRouter>
   );
 };
 
@@ -43,9 +45,9 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AuthProvider>
+      <AppProvider>
         <AppContent />
-      </AuthProvider>
+      </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

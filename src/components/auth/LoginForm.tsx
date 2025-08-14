@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, FileText } from 'lucide-react';
+import { useAuth } from '@/contexts/UseContext';
+import { useErrorHandler } from '@/lib/errorHandler';
+import { Link } from 'react-router-dom';
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -13,45 +15,47 @@ export const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
   const { toast } = useToast();
+  const { showError, showSuccess } = useErrorHandler();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation côté client
+    if (!email.trim()) {
+      showError("L'adresse email est requise", "Validation échouée");
+      return;
+    }
+    
+    if (!password) {
+      showError("Le mot de passe est requis", "Validation échouée");
+      return;
+    }
+    
     const success = await login(email, password);
     
-    if (success) {
-      toast({
-        title: "Connexion réussie",
-        description: "Bienvenue dans votre gestionnaire de documents",
-      });
-    } else {
-      toast({
-        title: "Erreur de connexion",
-        description: "Email ou mot de passe incorrect",
-        variant: "destructive",
-      });
-    }
+    // Les messages de succès/erreur sont maintenant gérés dans le Provider
+    // via le hook useErrorHandler
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-accent p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-accent p-3 sm:p-4">
       <Card className="w-full max-w-md shadow-2xl border-0">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-r from-primary to-primary-glow rounded-full flex items-center justify-center">
-            <FileText className="w-8 h-8 text-primary-foreground" />
+        <CardHeader className="text-center space-y-3 sm:space-y-4 p-4 sm:p-6">
+          <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-primary to-primary-glow rounded-full flex items-center justify-center">
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+          <CardTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
             DocManager
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm sm:text-base">
             Connectez-vous pour accéder à vos documents
           </CardDescription>
         </CardHeader>
         
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-4 sm:p-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -59,12 +63,12 @@ export const LoginForm = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="transition-all duration-300 focus:ring-2 focus:ring-primary/20"
+                className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 text-base sm:text-sm"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
+              <Label htmlFor="password" className="text-sm">Mot de passe</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -73,7 +77,7 @@ export const LoginForm = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pr-10 transition-all duration-300 focus:ring-2 focus:ring-primary/20"
+                  className="pr-10 transition-all duration-300 focus:ring-2 focus:ring-primary/20 text-base sm:text-sm"
                 />
                 <Button
                   type="button"
@@ -87,22 +91,24 @@ export const LoginForm = () => {
               </div>
             </div>
             
-            <div className="bg-accent/50 p-3 rounded-lg text-sm">
-              <p className="font-medium mb-1">Comptes de démonstration :</p>
-              <p>• admin@example.com / admin123</p>
-              <p>• user@example.com / user123</p>
-            </div>
           </CardContent>
           
-          <CardFooter>
+          <CardFooter className="flex flex-col gap-4 p-4 sm:p-6">
             <Button 
               type="submit" 
-              className="w-full" 
+              className="w-full text-base sm:text-sm h-11 sm:h-10" 
               variant="gradient"
               disabled={isLoading}
             >
               {isLoading ? "Connexion..." : "Se connecter"}
             </Button>
+
+            <div className="text-xs sm:text-sm text-center">
+              Pas encore de compte ?{" "}
+              <Link to="/signup" className="text-primary hover:text-primary-glow font-medium">
+                Créer un compte
+              </Link>
+            </div>
           </CardFooter>
         </form>
       </Card>
