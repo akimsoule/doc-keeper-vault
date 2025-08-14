@@ -7,10 +7,15 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { SignUpForm } from "@/components/auth/SignUpForm";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import { AuthProvider, DocumentProvider } from "./contexts/Provider";
 import { useAuth } from "./contexts/UseContext";
-import { AppProvider } from "./contexts/Provider";
 
 const queryClient = new QueryClient();
+
+const AuthWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  return user ? <DocumentProvider>{children}</DocumentProvider> : <>{children}</>;
+};
 
 const AppContent = () => {
   const { user, isLoading } = useAuth();
@@ -45,9 +50,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
+      <AuthProvider>
+        <AuthWrapper>
+          <AppContent />
+        </AuthWrapper>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
