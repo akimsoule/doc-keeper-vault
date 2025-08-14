@@ -88,4 +88,6 @@ out-storybook/
 # Ensure IDE run configs or generated files are ignored
 .vscode/.history
 
+package-lock.json
+
 # End of file
