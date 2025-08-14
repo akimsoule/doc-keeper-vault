@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, FileText, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/UseContext';
 import { useErrorHandler } from '@/lib/errorHandler';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export const SignUpForm = () => {
   const [name, setName] = useState('');
@@ -19,6 +19,7 @@ export const SignUpForm = () => {
   const { signup, isLoading } = useAuth();
   const { toast } = useToast();
   const { showError, showSuccess } = useErrorHandler();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,10 +45,18 @@ export const SignUpForm = () => {
       return;
     }
     
-    const success = await signup(name, email, password);
-    
-    // Les messages de succès/erreur sont maintenant gérés dans le Provider
-    // via le hook useErrorHandler
+    try {
+      const success = await signup(name, email, password);
+      if (success) {
+        // Rediriger vers le dashboard après inscription
+        navigate('/');
+      } else {
+        // Le provider a déjà affiché une erreur si nécessaire
+      }
+    } catch (err) {
+      console.error('Erreur lors du submit d\'inscription:', err);
+      showError(err, 'Erreur lors de l\'inscription');
+    }
   };
 
   return (

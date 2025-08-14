@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, FileText } from 'lucide-react';
 import { useAuth } from '@/contexts/UseContext';
 import { useErrorHandler } from '@/lib/errorHandler';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -16,6 +16,7 @@ export const LoginForm = () => {
   const { login, isLoading } = useAuth();
   const { toast } = useToast();
   const { showError, showSuccess } = useErrorHandler();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +32,18 @@ export const LoginForm = () => {
       return;
     }
     
-    const success = await login(email, password);
-    
-    // Les messages de succès/erreur sont maintenant gérés dans le Provider
-    // via le hook useErrorHandler
+    try {
+      const success = await login(email, password);
+      if (success) {
+        // Rediriger vers le dashboard après connexion
+        navigate('/');
+      } else {
+        // Le provider a déjà affiché une erreur si nécessaire
+      }
+    } catch (err) {
+      console.error('Erreur lors du submit de connexion:', err);
+      showError(err, 'Erreur de connexion');
+    }
   };
 
   return (
