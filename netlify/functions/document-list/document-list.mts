@@ -22,6 +22,13 @@ const handler: Handler = withAuth(async (event, context) => {
       sortOrder = 'desc'
     } = event.queryStringParameters || {};
 
+    // Récupérer les tags comme un array depuis les query parameters
+    const queryParams = event.queryStringParameters || {};
+    const tags = Object.entries(queryParams)
+      .filter(([key]) => key === 'tags')
+      .map(([, value]) => value)
+      .filter(Boolean) as string[];
+
     const pageNum = parseInt(page, 10) || 1;
     const sizeNum = parseInt(pageSize, 10) || 10;
 
@@ -31,6 +38,7 @@ const handler: Handler = withAuth(async (event, context) => {
       search,
       type,
       category,
+      tags,
       sortBy,
       sortOrder: sortOrder.toLowerCase() === 'asc' ? 'asc' : 'desc'
     });

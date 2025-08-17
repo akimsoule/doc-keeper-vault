@@ -1,4 +1,5 @@
 import { Storage, verify } from 'megajs';
+import { MegaConfigService } from './megaConfigService';
 
 /**
  * Interface représentant un fichier MEGA après upload
@@ -18,20 +19,44 @@ interface MegaFile {
  */
 export class MegaStorageService {
   private storage: Storage | undefined;
-  private email = process.env.MEGA_EMAIL!;
-  private password = process.env.MEGA_PASSWORD!;
+  private currentUserId: string | undefined;
+  private megaConfigService: MegaConfigService;
+
+  constructor() {
+    this.megaConfigService = new MegaConfigService();
+  }
+
+  /**
+   * Définit l'utilisateur courant pour utiliser sa configuration MEGA
+   * @param userId - ID de l'utilisateur
+   */
+  setCurrentUser(userId: string): void {
+    // Si on change d'utilisateur, fermer la connexion actuelle
+    if (this.currentUserId !== userId && this.storage) {
+      this.storage = undefined; // Forcer la reconnexion
+    }
+    this.currentUserId = userId;
+  }
 
   /**
    * Initialise la connexion MEGA
    */
   private async getStorage(): Promise<Storage> {
     if (!this.storage) {
-      if (!this.email || !this.password) {
-        throw new Error('Identifiants MEGA requis');
+      // Vérifier qu'un utilisateur est défini
+      if (!this.currentUserId) {
+        throw new Error('Aucun utilisateur défini pour la connexion MEGA');
       }
+
+      // Récupérer les identifiants MEGA de l'utilisateur
+      const userCredentials = await this.megaConfigService.getMegaCredentials(this.currentUserId);
+      if (!userCredentials) {
+        throw new Error('Aucune configuration MEGA trouvée pour cet utilisateur. Veuillez configurer vos identifiants MEGA dans les paramètres.');
+      }
+
       this.storage = await new Storage({ 
-        email: this.email, 
-        password: this.password 
+        email: userCredentials.email, 
+        password: userCredentials.password 
       }).ready;
     }
     return this.storage;
@@ -205,15 +230,13 @@ export class MegaStorageService {
    * @param name - Nouveau nom du fichier
    * @param mimeType - Type MIME du nouveau fichier
    * @param buffer - Nouveau contenu du fichier
-   * @param userId - ID de l'utilisateur (paramètre conservé pour compatibilité mais non utilisé)
    * @returns ID du nouveau fichier
    */
   async updateFile(
     fileId: string,
     name: string,
     mimeType: string,
-    buffer: Buffer,
-    userId?: string
+    buffer: Buffer
   ): Promise<string> {
     const storage = await this.getStorage();
     const oldFile = storage.find(f => f.nodeId === fileId);

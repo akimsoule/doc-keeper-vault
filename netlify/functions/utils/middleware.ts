@@ -14,19 +14,25 @@ export type JsonResponse = {
   };
 };
 
-// Headers JSON standards
-const jsonHeaders = {
+// Headers de sécurité renforcés
+const securityHeaders = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Credentials': 'true',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
 } as const;
 
 // Fonctions utilitaires pour les réponses JSON
 export function jsonResponse(statusCode: number, body: JsonResponse): HandlerResponse {
   return {
     statusCode,
-    headers: { ...jsonHeaders },
+    headers: { ...securityHeaders },
     body: JSON.stringify(body)
   };
 }
@@ -45,13 +51,14 @@ export function withAuth(handler: Handler): Handler {
     if (event.httpMethod === 'OPTIONS') {
       return {
         statusCode: 204,
-        headers: { ...jsonHeaders },
+        headers: { ...securityHeaders },
         body: ''
       };
     }
 
     const authHeader = event.headers['authorization'] || event.headers['Authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Path :', event.path);
       return errorResponse(401, 'Non autorisé');
     }
     
@@ -66,15 +73,16 @@ export function withAuth(handler: Handler): Handler {
         return errorResponse(500, 'Erreur serveur interne');
       }
 
-      // Assurer que toutes les réponses ont les headers JSON
+      // Assurer que toutes les réponses ont les headers de sécurité
       return {
         ...response,
         headers: {
-          ...jsonHeaders,
+          ...securityHeaders,
           ...(response.headers || {})
         }
       };
-    } catch (err) {
+    } catch (error) {
+      console.error('Error verifying token:', error);
       return errorResponse(401, 'Token invalide');
     }
   };

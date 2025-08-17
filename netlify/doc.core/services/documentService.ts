@@ -59,6 +59,9 @@ export class DocumentService {
       throw new Error("ownerId ou ownerEmail requis pour créer un document");
     }
 
+    // Définir l'utilisateur courant pour le service MEGA
+    this.megaStorageService.setCurrentUser(ownerId);
+
     // Upload du fichier vers MEGA
     let fileId = "";
     let fileSize = 0;
@@ -327,6 +330,9 @@ export class DocumentService {
       mimeType: string;
     };
   }) {
+    // Définir l'utilisateur courant pour le service MEGA
+    this.megaStorageService.setCurrentUser(ownerId);
+
     // D'abord, récupérer les informations du document sans transaction
     const existing = await prisma.document.findFirst({ 
       where: { id, ownerId },
@@ -472,6 +478,9 @@ export class DocumentService {
       throw new Error("Document non trouvé");
     }
 
+    // Définir l'utilisateur courant pour le service MEGA
+    this.megaStorageService.setCurrentUser(document.ownerId);
+
     // Enregistrer le log AVANT la suppression
     await this.logService.log({
       action: "DOCUMENT_DELETE",
@@ -500,6 +509,9 @@ export class DocumentService {
   }
 
   async deleteUserDocument(id: string, ownerId: string) {
+    // Définir l'utilisateur courant pour le service MEGA
+    this.megaStorageService.setCurrentUser(ownerId);
+
     // Vérifier que le document existe et appartient à l'utilisateur
     const document = await prisma.document.findFirst({
       where: { id, ownerId },
@@ -559,6 +571,9 @@ export class DocumentService {
       throw new Error("Aucun fichier associé à ce document");
     }
 
+    // Définir l'utilisateur courant pour le service MEGA
+    this.megaStorageService.setCurrentUser(document.ownerId);
+
     // Télécharger le fichier depuis MEGA
     const fileBuffer = await this.megaStorageService.downloadFile(
       document.fileId
@@ -595,6 +610,9 @@ export class DocumentService {
       throw new Error("Aucun fichier associé à ce document");
     }
 
+    // Définir l'utilisateur courant pour le service MEGA
+    this.megaStorageService.setCurrentUser(document.ownerId);
+
     try {
       // Obtenir l'URL depuis MEGA (service externe) - hors transaction
       const url = await this.megaStorageService.getFileUrl(document.fileId);
@@ -629,6 +647,9 @@ export class DocumentService {
   }
 
   async getUserDocumentUrl(id: string, ownerId: string) {
+    // Définir l'utilisateur courant pour le service MEGA
+    this.megaStorageService.setCurrentUser(ownerId);
+
     // D'abord, récupérer le document sans transaction pour éviter les timeouts
     const document = await prisma.document.findFirst({
       where: { id, ownerId },
@@ -710,6 +731,7 @@ export class DocumentService {
     search?: string;
     type?: string;
     category?: string;
+    tags?: string[];
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }) {
@@ -719,6 +741,7 @@ export class DocumentService {
       search = '',
       type = '',
       category = '',
+      tags = [],
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = options;
@@ -741,7 +764,12 @@ export class DocumentService {
         ]
       } : {}),
       ...(type ? { type } : {}),
-      ...(category ? { category } : {})
+      ...(category ? { category } : {}),
+      ...(tags && tags.length > 0 ? {
+        tags: {
+          hasSome: tags
+        }
+      } : {})
     };
 
     // Count total avec filtres
@@ -783,7 +811,8 @@ export class DocumentService {
       filters: {
         search,
         type,
-        category
+        category,
+        tags
       },
       sorting: {
         field: validSortBy,

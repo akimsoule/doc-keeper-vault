@@ -10,14 +10,15 @@ generator client {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
+  id           String      @id @default(uuid())
+  email        String      @unique
   name         String
   passwordHash String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
   documents    Document[]
-  logs         Log[]      @relation("UserLogs")
+  logs         Log[]       @relation("UserLogs")
+  megaConfig   MegaConfig?
 }
 
 model Document {
@@ -52,4 +53,15 @@ model Log {
   createdAt  DateTime  @default(now())
 
   @@map("logs")
+}
+
+model MegaConfig {
+  id        String   @id @default(uuid())
+  email     String
+  password  String // Chiffré en base
+  isActive  Boolean  @default(true)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
