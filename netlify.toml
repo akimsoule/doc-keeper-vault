@@ -41,10 +41,6 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-# Plugin pour optimiser les images (SEO)
-[[plugins]]
-  package = "@netlify/plugin-gatsby"
   
 # Context pour les différents environnements
 [context.production]
