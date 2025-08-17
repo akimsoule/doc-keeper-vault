@@ -6,6 +6,8 @@
 [build.environment]
   NODE_ENV = "production"
   VITE_ENV_NODE = "production"
+  NODE_VERSION = "18"
+  NPM_CONFIG_PRODUCTION = "false"
 
 # Headers pour SEO et sécurité
 [[headers]]
