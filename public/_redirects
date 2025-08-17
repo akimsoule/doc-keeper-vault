@@ -1,0 +1,15 @@
+# Redirections pour Doc Keeper Vault
+
+# Redirection HTTPS forcée (si nécessaire)
+http://doc-keeper-vault.netlify.app/* https://doc-keeper-vault.netlify.app/:splat 301!
+
+# Redirection des anciennes URLs (si applicable)
+/documents /dashboard 301
+/docs /dashboard 301
+/admin /dashboard/admin 301
+
+# Gestion des erreurs 404 - SPA
+/* /index.html 200
+
+# Redirection pour les API deprecated
+/api/v1/* /.netlify/functions/:splat 301

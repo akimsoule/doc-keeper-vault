@@ -11,3 +11,4 @@ export { default as ActivityList } from './ActivityList';
 export { default as TagsFilter } from './TagsFilter';
 export { default as CacheManager } from './CacheManager';
 export { MegaConfigManager } from './MegaConfigManager';
+export { default as SEO } from './SEO';

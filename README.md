@@ -1,6 +1,6 @@
 # 📁 Doc Keeper Vault
 
-> **Une solution moderne et sécurisée pour la gestion documentaire avec stockage cloud MEGA**
+> **Une solution moderne et sécurisée pour la gestion documentaire avec stockage cloud**
 
 [![Made with React](https://img.shields.io/badge/Made%20with-React-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -18,7 +18,7 @@
 - Protection contre les attaques par force brute
 
 ### 📄 **Gestion Documentaire**
-- Upload et stockage de documents sur MEGA Cloud
+- Upload et stockage de documents dans le cloud
 - Prévisualisation des documents (PDF, images, texte)
 - Système de tags pour l'organisation
 - Recherche avancée et filtres
@@ -44,7 +44,7 @@
 
 - Node.js 18+ 
 - PostgreSQL
-- Compte MEGA (pour le stockage cloud)
+- Compte cloud storage (MEGA supporté actuellement)
 
 ### Installation
 
@@ -100,14 +100,14 @@ MEGA_ENCRYPTION_KEY="votre-clé-de-chiffrement-32-caractères"
 VITE_ENV_NODE="development"
 ```
 
-### Configuration MEGA
+### Configuration Cloud Storage
 
-⚠️ **Important** : Les credentials MEGA sont maintenant configurés individuellement par chaque utilisateur via l'interface d'administration. Plus besoin de variables globales `MEGA_EMAIL` et `MEGA_PASSWORD`.
+⚠️ **Important** : Les credentials cloud sont maintenant configurés individuellement par chaque utilisateur via l'interface d'administration. Plus besoin de variables globales.
 
-1. Créez un compte sur [MEGA](https://mega.nz)
+1. Créez un compte sur votre provider cloud supporté (MEGA actuellement)
 2. Connectez-vous à l'application
-3. Allez dans **Administration** > **Configuration MEGA**
-4. Entrez vos credentials MEGA personnels
+3. Allez dans **Administration** > **Configuration Cloud**
+4. Entrez vos credentials personnels
 
 ## 🏗️ Architecture
 
@@ -117,7 +117,7 @@ VITE_ENV_NODE="development"
 - **Styling**: TailwindCSS + DaisyUI
 - **Backend**: Netlify Functions (Node.js)
 - **Base de données**: PostgreSQL + Prisma ORM
-- **Stockage**: MEGA Cloud Storage
+- **Stockage**: Multi-cloud (MEGA supporté)
 - **Déploiement**: Netlify
 
 ### Structure du Projet
@@ -141,7 +141,7 @@ doc-keeper-vault/
 
 ### Mesures Implémentées
 
-- **Chiffrement** : AES-256-GCM pour les mots de passe MEGA
+- **Chiffrement** : Chiffrement avancé pour les mots de passe cloud
 - **JWT** : Tokens sécurisés avec expiration
 - **Rate Limiting** : Protection contre les attaques par force brute
 - **Validation** : Validation stricte des données avec Joi
@@ -168,7 +168,7 @@ doc-keeper-vault/
 - Export des logs
 
 ### Interface d'Administration
-- Configuration MEGA par utilisateur
+- Configuration cloud par utilisateur
 - Gestion du cache système
 - Monitoring des performances
 
@@ -206,7 +206,7 @@ Le projet est automatiquement déployé sur Netlify via GitHub Actions.
 
 ## 📋 Roadmap
 
-- [ ] Support multi-cloud (Google Drive, Dropbox)
+- [ ] Support multi-cloud (Google Drive, Dropbox, OneDrive)
 - [ ] Collaboration en temps réel
 - [ ] API publique
 - [ ] Application mobile

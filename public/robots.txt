@@ -1,0 +1,49 @@
+# Robots.txt pour Doc Keeper Vault
+
+User-agent: *
+
+# Pages autorisées pour l'indexation
+Allow: /
+Allow: /login
+Allow: /signup
+
+# Pages privées - Interdites aux robots
+Disallow: /dashboard/
+Disallow: /.netlify/
+Disallow: /api/
+Disallow: /admin/
+Disallow: /private/
+
+# Fichiers système interdits
+Disallow: /*.json$
+Disallow: /*.env$
+Disallow: /src/
+Disallow: /node_modules/
+
+# Sitemap
+Sitemap: https://doc-keeper-vault.netlify.app/sitemap.xml
+
+# Délai entre les requêtes (recommandé)
+Crawl-delay: 1
+
+# Spécifique à Google
+User-agent: Googlebot
+Allow: /
+Disallow: /dashboard/
+Crawl-delay: 0
+
+# Spécifique à Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /dashboard/
+Crawl-delay: 1
+
+# Interdire les mauvais bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
