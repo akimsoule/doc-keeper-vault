@@ -4,7 +4,7 @@ import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { handleApiError } from "../services/api";
 import toast from "react-hot-toast";
-import SEO from "./SEO";
+import { SEO } from "./";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
