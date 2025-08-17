@@ -96,12 +96,10 @@ export class DocumentService {
         size: fileSize,
         description: data.description,
         tags: data.tags
-          ? (Array.isArray(data.tags) ? data.tags.join(",") : data.tags)
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean)
-              .join(",")
-          : "",
+          ? (Array.isArray(data.tags)
+              ? data.tags
+              : data.tags.split(",").map((tag) => tag.trim()).filter(Boolean))
+          : [],
         fileId,
         ownerId: ownerId,
       },
@@ -292,11 +290,9 @@ export class DocumentService {
       data: {
         ...data,
         tags: data.tags
-          ? (Array.isArray(data.tags) ? data.tags.join(",") : data.tags)
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean)
-              .join(",")
+          ? Array.isArray(data.tags)
+            ? data.tags
+            : data.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
           : undefined,
         modifiedAt: new Date(),
       },
@@ -388,13 +384,11 @@ export class DocumentService {
         type: data.type || existing.type,
         category: data.category || existing.category,
         description: data.description !== undefined ? data.description : existing.description,
-        tags: data.tags 
-          ? (Array.isArray(data.tags) ? data.tags.join(",") : data.tags)
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean)
-              .join(",")
-          : existing.tags.join(","),
+        tags: data.tags
+          ? (Array.isArray(data.tags)
+              ? data.tags
+              : data.tags.split(",").map((tag) => tag.trim()).filter(Boolean))
+          : [],
         isFavorite: data.isFavorite !== undefined ? data.isFavorite : undefined,
         fileId: newFileId,
         size: newSize,

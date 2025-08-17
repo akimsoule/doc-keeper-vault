@@ -1,0 +1,1 @@
+module.exports = require('./netlify/functions/document-update/document-update.js')
