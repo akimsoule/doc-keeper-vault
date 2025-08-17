@@ -10,6 +10,3 @@ http://doc-keeper-vault.netlify.app/* https://doc-keeper-vault.netlify.app/:spla
 
 # Gestion des erreurs 404 - SPA
 /* /index.html 200
-
-# Redirection pour les API deprecated
-/api/v1/* /.netlify/functions/:splat 301
