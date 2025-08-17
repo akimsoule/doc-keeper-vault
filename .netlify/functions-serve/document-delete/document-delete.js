@@ -1,1 +1,0 @@
-module.exports = require('./netlify/functions/document-delete/document-delete.js')

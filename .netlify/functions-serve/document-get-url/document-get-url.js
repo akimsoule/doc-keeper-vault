@@ -1,1 +1,0 @@
-module.exports = require('./netlify/functions/document-get-url/document-get-url.js')
