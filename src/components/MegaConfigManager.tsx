@@ -15,6 +15,7 @@ export function MegaConfigManager() {
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+
   useEffect(() => {
     loadConfig();
   }, []);
@@ -23,8 +24,8 @@ export function MegaConfigManager() {
     try {
       setLoading(true);
       const currentConfig = await megaConfigService.getMegaConfig();
-      console.log('Configuration MEGA chargée:', currentConfig);
       if (currentConfig && currentConfig.email) {
+        setConfig(currentConfig);
         setFormData({
           email: currentConfig.email,
           password: '',
