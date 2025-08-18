@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:netlify": "netlify dev",
     "start": "vite",
-    "build": "prisma generate && vite build",
+    "build": "prisma deploy && prisma generate && vite build",
     "build:netlify": "npm install --production=false && prisma deploy && prisma generate && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
