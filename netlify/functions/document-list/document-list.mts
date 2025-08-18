@@ -22,12 +22,8 @@ const handler: Handler = withAuth(async (event, context) => {
       sortOrder = 'desc'
     } = event.queryStringParameters || {};
 
-    // Récupérer les tags comme un array depuis les query parameters
-    const queryParams = event.queryStringParameters || {};
-    const tags = Object.entries(queryParams)
-      .filter(([key]) => key === 'tags')
-      .map(([, value]) => value)
-      .filter(Boolean) as string[];
+    // Récupérer les tags depuis les multiValueQueryStringParameters pour gérer les paramètres multiples
+    const tags = event.multiValueQueryStringParameters?.tags || [];
 
     const pageNum = parseInt(page, 10) || 1;
     const sizeNum = parseInt(pageSize, 10) || 10;
