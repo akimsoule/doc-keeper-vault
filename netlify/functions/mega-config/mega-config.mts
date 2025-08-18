@@ -81,7 +81,12 @@ async function setMegaConfig(userId: string, body: string | null) {
 }
 
 async function deleteMegaConfig(userId: string) {
-  await megaConfigService.deleteMegaConfig(userId);
+  const wasDeleted = await megaConfigService.deleteMegaConfig(userId);
+  
+  if (!wasDeleted) {
+    return errorResponse(404, 'Aucune configuration MEGA trouvée pour cet utilisateur');
+  }
+  
   return successResponse({ message: 'Configuration MEGA supprimée' });
 }
 
@@ -96,5 +101,10 @@ async function toggleMegaConfig(userId: string, body: string | null) {
   }
 
   const config = await megaConfigService.toggleMegaConfig(userId, isActive);
+  
+  if (!config) {
+    return errorResponse(404, 'Aucune configuration MEGA trouvée pour cet utilisateur');
+  }
+  
   return successResponse(config);
 }

@@ -91,19 +91,41 @@ export class MegaConfigService {
   /**
    * Supprime la configuration MEGA d'un utilisateur
    * @param userId - ID de l'utilisateur
+   * @returns True si une configuration a été supprimée, false sinon
    */
-  async deleteMegaConfig(userId: string) {
+  async deleteMegaConfig(userId: string): Promise<boolean> {
+    // Vérifier d'abord si la configuration existe
+    const existingConfig = await prisma.megaConfig.findUnique({
+      where: { userId }
+    });
+
+    if (!existingConfig) {
+      return false;
+    }
+
     await prisma.megaConfig.delete({
       where: { userId }
     });
+
+    return true;
   }
 
   /**
    * Active ou désactive la configuration MEGA d'un utilisateur
    * @param userId - ID de l'utilisateur
    * @param isActive - Statut d'activation
+   * @returns Configuration mise à jour ou null si non trouvée
    */
   async toggleMegaConfig(userId: string, isActive: boolean) {
+    // Vérifier d'abord si la configuration existe
+    const existingConfig = await prisma.megaConfig.findUnique({
+      where: { userId }
+    });
+
+    if (!existingConfig) {
+      return null;
+    }
+
     const config = await prisma.megaConfig.update({
       where: { userId },
       data: { isActive, updatedAt: new Date() },
