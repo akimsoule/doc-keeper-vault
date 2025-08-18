@@ -61,6 +61,7 @@ const Login: React.FC = () => {
                     className="input input-bordered w-full pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
                     required
                   />
                 </div>
@@ -78,6 +79,7 @@ const Login: React.FC = () => {
                     className="input input-bordered w-full pl-10 pr-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
                     required
                   />
                   <button

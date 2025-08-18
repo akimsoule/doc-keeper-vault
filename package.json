@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "netlify dev",
+    "dev": "vite",
+    "dev:netlify": "netlify dev",
     "start": "vite",
     "build": "prisma generate && vite build",
     "build:netlify": "npm install --production=false && prisma generate && vite build",
-    "build:prod": "NODE_ENV=production prisma generate && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
