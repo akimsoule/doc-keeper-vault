@@ -29,13 +29,29 @@ const baseHandler: Handler = async (event) => {
     try {
       // Déchiffrer le mot de passe selon la méthode utilisée
       if (encryptionMethod === 'rsa' && sessionMatch && sessionMatch[1]) {
-        password = decryptForSession(encryptedPassword, sessionMatch[1]);
+        const sessionId = sessionMatch[1];
+        console.log('Tentative de déchiffrement RSA avec sessionId:', sessionId);
+        password = decryptForSession(encryptedPassword, sessionId);
+        console.log('Déchiffrement RSA réussi');
       } else if (encryptionMethod === 'base64') {
+        console.log('Utilisation du déchiffrement Base64');
         password = decodeBase64(encryptedPassword);
+      } else {
+        console.warn('Méthode de chiffrement non reconnue ou sessionId manquant:', encryptionMethod);
+        // Essayer les deux méthodes
+        try {
+          if (sessionMatch && sessionMatch[1]) {
+            password = decryptForSession(encryptedPassword, sessionMatch[1]);
+          }
+        } catch (rsaErr) {
+          console.warn('Échec du déchiffrement RSA, tentative avec Base64');
+          password = decodeBase64(encryptedPassword);
+        }
       }
     } catch (err) {
       console.error('Erreur lors du déchiffrement:', err);
-      return errorResponse(400, 'Erreur de déchiffrement des identifiants');
+      return errorResponse(400, 'Erreur de déchiffrement des identifiants: ' + 
+        (err instanceof Error ? err.message : 'erreur inconnue'));
     }
 
     const user = await userService.createUser({ email, name, password });

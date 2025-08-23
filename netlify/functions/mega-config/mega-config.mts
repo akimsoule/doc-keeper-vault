@@ -75,14 +75,30 @@ async function setMegaConfig(userId: string, body: string | null, event?: any) {
       const sessionMatch = cookies.match(/secure_session_id=([^;]+)/);
       
       if (encryptionMethod === 'rsa' && sessionMatch && sessionMatch[1]) {
-        configData.password = decryptForSession(configData.password, sessionMatch[1]);
+        const sessionId = sessionMatch[1];
+        console.log('Tentative de déchiffrement RSA avec sessionId:', sessionId);
+        configData.password = decryptForSession(configData.password, sessionId);
+        console.log('Déchiffrement RSA réussi pour MEGA config');
       } else if (encryptionMethod === 'base64' || isEncoded) {
+        console.log('Utilisation du déchiffrement Base64 pour MEGA config');
         configData.password = decodeBase64(configData.password);
+      } else {
+        console.warn('Méthode de chiffrement non reconnue ou sessionId manquant:', encryptionMethod);
+        // Essayer les deux méthodes
+        try {
+          if (sessionMatch && sessionMatch[1]) {
+            configData.password = decryptForSession(configData.password, sessionMatch[1]);
+          }
+        } catch (rsaErr) {
+          console.warn('Échec du déchiffrement RSA, tentative avec Base64');
+          configData.password = decodeBase64(configData.password);
+        }
       }
     }
   } catch (err) {
     console.error('Erreur lors du déchiffrement:', err);
-    return errorResponse(400, 'Erreur de déchiffrement des identifiants');
+    return errorResponse(400, 'Erreur de déchiffrement des identifiants: ' + 
+      (err instanceof Error ? err.message : 'erreur inconnue'));
   }
 
   // Tester la connexion si demandé

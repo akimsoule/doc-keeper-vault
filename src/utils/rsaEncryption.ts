@@ -74,6 +74,21 @@ export async function importRsaPublicKey(pemKey: string): Promise<CryptoKey> {
 }
 
 /**
+ * Convertit un ArrayBuffer en chaîne Base64 de manière robuste
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const len = bytes.byteLength;
+  
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  
+  return btoa(binary);
+}
+
+/**
  * Chiffre des données avec la clé publique RSA
  */
 export async function encryptWithPublicKey(data: string): Promise<string> {
@@ -95,8 +110,8 @@ export async function encryptWithPublicKey(data: string): Promise<string> {
       dataBuffer
     );
     
-    // Convertir en Base64 pour la transmission
-    return btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
+    // Convertir en Base64 pour la transmission de manière robuste
+    return arrayBufferToBase64(encryptedBuffer);
   } catch (error) {
     console.error('Erreur lors du chiffrement RSA:', error);
     throw error;

@@ -71,8 +71,15 @@ function cleanupOldKeys() {
  */
 export function decryptWithPrivateKey(encryptedData: string, privateKey: string): string {
   try {
+    if (!encryptedData || typeof encryptedData !== 'string') {
+      throw new Error('Données de chiffrement invalides');
+    }
+    
+    // Nettoyer la chaîne Base64 si nécessaire (supprimer les caractères non-Base64)
+    const cleanBase64 = encryptedData.replace(/[^A-Za-z0-9+/=]/g, '');
+    
     // Convertir les données Base64 en Buffer
-    const buffer = Buffer.from(encryptedData, 'base64');
+    const buffer = Buffer.from(cleanBase64, 'base64');
     
     // Déchiffrer avec la clé privée
     const decrypted = crypto.privateDecrypt(
@@ -87,7 +94,7 @@ export function decryptWithPrivateKey(encryptedData: string, privateKey: string)
     return decrypted.toString('utf8');
   } catch (error) {
     console.error('Erreur de déchiffrement RSA:', error);
-    throw new Error('Impossible de déchiffrer les données');
+    throw new Error('Impossible de déchiffrer les données: ' + (error instanceof Error ? error.message : 'erreur inconnue'));
   }
 }
 

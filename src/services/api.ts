@@ -59,7 +59,19 @@ export const authService = {
    */
   async encryptPassword(password: string): Promise<{ encryptedPassword: string; method: 'rsa' | 'base64' }> {
     try {
+      // Valider que nous avons un mot de passe valide à chiffrer
+      if (!password || typeof password !== 'string') {
+        throw new Error('Mot de passe invalide');
+      }
+      
+      // Essayer le chiffrement RSA
       const encrypted = await encryptWithPublicKey(password);
+      
+      // Vérifier que le résultat est une chaîne Base64 valide
+      if (!encrypted || typeof encrypted !== 'string') {
+        throw new Error('Résultat de chiffrement invalide');
+      }
+      
       return { encryptedPassword: encrypted, method: 'rsa' };
     } catch (error) {
       console.warn('Chiffrement RSA échoué, utilisation du Base64 comme solution de secours:', error);
