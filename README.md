@@ -13,12 +13,14 @@
 ### 🔐 **Sécurité & Authentification**
 - Authentification JWT sécurisée
 - Chiffrement AES-256-GCM pour les mots de passe
+- Chiffrement RSA des identifiants lors de la transmission
 - Configuration MEGA individuelle par utilisateur
 - Logs d'activité détaillés
 - Protection contre les attaques par force brute
 
 ### 📄 **Gestion Documentaire**
 - Upload et stockage de documents dans le cloud
+- Synchronisation des fichiers ajoutés directement sur MEGA
 - Prévisualisation des documents (PDF, images, texte)
 - Système de tags pour l'organisation
 - Recherche avancée et filtres
@@ -98,6 +100,9 @@ MEGA_ENCRYPTION_KEY="votre-clé-de-chiffrement-32-caractères"
 
 # Environnement
 VITE_ENV_NODE="development"
+
+# RSA (généré automatiquement)
+RSA_KEY_SIZE="2048"
 ```
 
 ### Configuration Cloud Storage
@@ -107,7 +112,9 @@ VITE_ENV_NODE="development"
 1. Créez un compte sur votre provider cloud supporté (MEGA actuellement)
 2. Connectez-vous à l'application
 3. Allez dans **Administration** > **Configuration Cloud**
-4. Entrez vos credentials personnels
+4. Entrez vos credentials personnels (chiffrés automatiquement via RSA)
+
+Une fois configuré, vous pouvez synchroniser les fichiers ajoutés directement sur MEGA avec la base de données via le bouton de synchronisation dans l'interface.
 
 ## 🏗️ Architecture
 
@@ -126,12 +133,20 @@ VITE_ENV_NODE="development"
 doc-keeper-vault/
 ├── src/                    # Frontend React
 │   ├── components/         # Composants réutilisables
+│   │   └── RSAKeyPreloader.tsx  # Préchargement des clés RSA
 │   ├── pages/             # Pages de l'application
 │   ├── hooks/             # Hooks personnalisés
 │   ├── services/          # Services API
+│   ├── utils/             # Utilitaires
+│   │   └── rsaEncryption.ts  # Fonctions de chiffrement RSA client
 │   └── types/             # Types TypeScript
 ├── netlify/
 │   ├── functions/         # Fonctions serverless
+│   │   ├── document-sync/  # Synchronisation MEGA
+│   │   ├── get-public-key/ # Endpoint clé publique RSA
+│   │   └── utils/
+│   │       ├── base64Utils.ts  # Encodage/décodage Base64
+│   │       └── rsaEncryption.ts # Utilitaires RSA serveur
 │   └── doc.core/          # Services backend
 ├── prisma/                # Schéma et migrations DB
 └── public/                # Assets statiques
@@ -141,7 +156,10 @@ doc-keeper-vault/
 
 ### Mesures Implémentées
 
-- **Chiffrement** : Chiffrement avancé pour les mots de passe cloud
+- **Chiffrement** : 
+  - Chiffrement AES-256-GCM pour les mots de passe
+  - Chiffrement RSA 2048 bits pour la transmission des identifiants
+  - Gestion sécurisée des clés par session utilisateur
 - **JWT** : Tokens sécurisés avec expiration
 - **Rate Limiting** : Protection contre les attaques par force brute
 - **Validation** : Validation stricte des données avec Joi
@@ -154,6 +172,9 @@ doc-keeper-vault/
 - Fichier `.env` exclu du versioning
 - Configuration par utilisateur
 - Audit trail complet
+- Chiffrement RSA 2048 bits pour les transmissions sensibles
+- Gestion sécurisée des clés par session utilisateur
+- Aucune donnée sensible en clair sur le réseau
 
 ## 📊 Fonctionnalités Avancées
 
@@ -171,6 +192,18 @@ doc-keeper-vault/
 - Configuration cloud par utilisateur
 - Gestion du cache système
 - Monitoring des performances
+
+### Sécurité Avancée
+- **Chiffrement RSA** : Utilisation de RSA 2048 bits pour protéger la transmission des identifiants
+- **Gestion des clés par session** : Chaque session utilisateur dispose d'une paire de clés unique
+- **Système de repli** : Fallback automatique vers Base64 pour assurer la compatibilité
+- **WebCrypto API** : Utilisation des API de chiffrement natives du navigateur
+- **Protection contre les MITM** : Les identifiants ne sont jamais transmis en clair
+
+### Synchronisation MEGA
+- Synchronisation manuelle des fichiers MEGA avec la base de données
+- Détection intelligente des fichiers non-synchronisés
+- Préservation des métadonnées lors de la synchronisation
 
 ## 🛠️ Développement
 
@@ -206,6 +239,8 @@ Le projet est automatiquement déployé sur Netlify via GitHub Actions.
 
 ## 📋 Roadmap
 
+- [x] Synchronisation des fichiers MEGA avec la base de données
+- [x] Chiffrement RSA pour la transmission des identifiants
 - [ ] Support multi-cloud (Google Drive, Dropbox, OneDrive)
 - [ ] Collaboration en temps réel
 - [ ] API publique
@@ -239,5 +274,7 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 **Développé avec ❤️ par [Akim Soule](https://github.com/akimsoule)**
 
 ⭐ **N'hésitez pas à star le projet si il vous a aidé !**
+
+_Dernière mise à jour : 23 août 2025_
 
 </div>
