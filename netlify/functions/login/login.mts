@@ -5,6 +5,8 @@ import { successResponse, errorResponse } from '../utils/middleware';
 import { withRateLimit } from '../utils/rateLimiter';
 import { validateData, loginSchema } from '../utils/validation';
 import { securityLogger } from '../utils/securityLogger';
+import { decodeBase64 } from '../utils/base64Utils';
+import { decryptForSession } from '../utils/rsaEncryption';
 
 const baseHandler: Handler = async (event) => {
   const ip = event.headers['x-forwarded-for'] || event.headers['x-real-ip'] || 'unknown';
@@ -18,7 +20,25 @@ const baseHandler: Handler = async (event) => {
       return errorResponse(400, error);
     }
 
-    const { email, password } = value!;
+    const { email, password: encryptedPassword, encryptionMethod } = value!;
+    
+    // Récupérer le sessionId depuis les cookies
+    let password = encryptedPassword;
+    const cookies = event.headers.cookie || '';
+    const sessionMatch = cookies.match(/secure_session_id=([^;]+)/);
+    
+    try {
+      // Déchiffrer le mot de passe selon la méthode utilisée
+      if (encryptionMethod === 'rsa' && sessionMatch && sessionMatch[1]) {
+        password = decryptForSession(encryptedPassword, sessionMatch[1]);
+      } else if (encryptionMethod === 'base64') {
+        password = decodeBase64(encryptedPassword);
+      }
+    } catch (err) {
+      console.error('Erreur lors du déchiffrement:', err);
+      securityLogger.logLoginAttempt(ip, email, false, userAgent);
+      return errorResponse(400, 'Erreur de déchiffrement des identifiants');
+    }
 
     const user = await userService.authenticateUser(email, password);
     const token = signJwt({ id: user.id });

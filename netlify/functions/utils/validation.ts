@@ -6,10 +6,11 @@ export const loginSchema = Joi.object({
     'string.email': 'Format d\'email invalide',
     'any.required': 'L\'email est requis'
   }),
-  password: Joi.string().min(6).required().messages({
-    'string.min': 'Le mot de passe doit contenir au moins 6 caractères',
+  password: Joi.string().required().messages({
     'any.required': 'Le mot de passe est requis'
-  })
+  }),
+  encryptionMethod: Joi.string().valid('rsa', 'base64').default('base64'),
+  isEncoded: Joi.boolean().optional().default(false) // Gardé pour compatibilité avec le code existant
 });
 
 export const signupSchema = Joi.object({
@@ -18,14 +19,12 @@ export const signupSchema = Joi.object({
     'any.required': 'L\'email est requis'
   }),
   password: Joi.string()
-    .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
     .required()
     .messages({
-      'string.min': 'Le mot de passe doit contenir au moins 8 caractères',
-      'string.pattern.base': 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial',
       'any.required': 'Le mot de passe est requis'
     }),
+  encryptionMethod: Joi.string().valid('rsa', 'base64').default('base64'),
+  isEncoded: Joi.boolean().optional().default(false), // Gardé pour compatibilité avec le code existant
   name: Joi.string().min(2).max(50).required().messages({
     'string.min': 'Le nom doit contenir au moins 2 caractères',
     'string.max': 'Le nom ne peut pas dépasser 50 caractères',

@@ -33,6 +33,7 @@ interface DocumentListProps {
   onDelete: (document: Document) => void;
   onToggleFavorite: (document: Document) => void;
   onDownload: (document: Document) => void;
+  onSyncMegaFiles?: () => void; // Nouvelle propriété pour synchroniser les fichiers MEGA
   isLoading: boolean;
 }
 
@@ -48,6 +49,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   onDelete,
   onToggleFavorite,
   onDownload,
+  onSyncMegaFiles,
   isLoading,
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -184,6 +186,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
               >
                 <Filter className="w-4 h-4" />
                 Filtres
+              </button>
+              <button
+                className="btn btn-outline btn-sm btn-primary"
+                onClick={() => onSyncMegaFiles?.()}
+                title="Synchroniser les fichiers ajoutés directement dans MEGA"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38" />
+                </svg>
+                Synchroniser
               </button>
             </div>
           </div>

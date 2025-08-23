@@ -12,7 +12,8 @@ export type LogAction =
   | 'DOCUMENT_DOWNLOAD'
   | 'DOCUMENT_FAVORITE'
   | 'DOCUMENT_UNFAVORITE'
-  | 'DOCUMENT_ERROR';
+  | 'DOCUMENT_ERROR'
+  | 'DOCUMENT_SYNC';
 
 export type LogEntity = 'USER' | 'DOCUMENT';
 

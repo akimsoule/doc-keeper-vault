@@ -37,21 +37,61 @@ api.interceptors.response.use(
   }
 );
 
+import { encryptWithPublicKey } from '../utils/rsaEncryption';
+
 // Services d'authentification
 export const authService = {
+  /**
+   * Encode une chaîne en Base64
+   * @param str Chaîne à encoder
+   * @returns Chaîne encodée en Base64
+   * @deprecated Utiliser la méthode de chiffrement RSA à la place
+   */
+  encodeBase64(str: string): string {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => 
+      String.fromCharCode(parseInt(p1, 16))
+    ));
+  },
+  
+  /**
+   * Chiffre un mot de passe avec la clé publique RSA
+   * En cas d'échec, revient à l'encodage Base64 comme solution de secours
+   */
+  async encryptPassword(password: string): Promise<{ encryptedPassword: string; method: 'rsa' | 'base64' }> {
+    try {
+      const encrypted = await encryptWithPublicKey(password);
+      return { encryptedPassword: encrypted, method: 'rsa' };
+    } catch (error) {
+      console.warn('Chiffrement RSA échoué, utilisation du Base64 comme solution de secours:', error);
+      return { encryptedPassword: this.encodeBase64(password), method: 'base64' };
+    }
+  },
+  
+  /**
+   * Connexion avec identifiants chiffrés
+   */
   async login(email: string, password: string): Promise<{ token: string; user: User }> {
+    const { encryptedPassword, method } = await this.encryptPassword(password);
+    
     const response: AxiosResponse<{ token: string; user: User }> = await api.post('/login', {
       email,
-      password,
+      password: encryptedPassword,
+      encryptionMethod: method,
     });
     return response.data;
   },
 
+  /**
+   * Inscription avec identifiants chiffrés
+   */
   async signup(name: string, email: string, password: string): Promise<{ token: string; user: User }> {
+    const { encryptedPassword, method } = await this.encryptPassword(password);
+    
     const response: AxiosResponse<{ token: string; user: User }> = await api.post('/signup', {
       name,
       email,
-      password,
+      password: encryptedPassword,
+      encryptionMethod: method,
     });
     return response.data;
   },
@@ -189,6 +229,16 @@ export const documentService = {
     cacheService.invalidate(`${CACHE_KEYS.DOCUMENT_URL}:${JSON.stringify({ id })}`);
     cacheService.invalidate(CACHE_KEYS.DOCUMENTS);
     cacheService.invalidate(CACHE_KEYS.TAGS);
+  },
+
+  async syncMegaFiles(): Promise<{message: string, syncedFiles: number}> {
+    const response = await api.post('/document-sync');
+    
+    // Invalider le cache des documents et tags
+    cacheService.invalidate(CACHE_KEYS.DOCUMENTS);
+    cacheService.invalidate(CACHE_KEYS.TAGS);
+    
+    return response.data;
   },
 
   async toggleFavorite(id: string, currentFavoriteStatus: boolean): Promise<Document> {
@@ -386,7 +436,19 @@ export const megaConfigService = {
    * Crée ou met à jour la configuration MEGA
    */
   async setMegaConfig(config: MegaConfigForm): Promise<MegaConfig> {
-    const response = await api.post('/mega-config', config);
+    // Si un mot de passe est fourni, le chiffrer
+    let payload = { ...config };
+    
+    if (config.password) {
+      const { encryptedPassword, method } = await authService.encryptPassword(config.password);
+      payload = { 
+        ...config,
+        password: encryptedPassword,
+        encryptionMethod: method
+      };
+    }
+    
+    const response = await api.post('/mega-config', payload);
     return response.data;
   },
 
@@ -410,9 +472,12 @@ export const megaConfigService = {
    */
   async testMegaConnection(email: string, password: string): Promise<boolean> {
     try {
+      const { encryptedPassword, method } = await authService.encryptPassword(password);
+      
       const response = await api.post('/mega-config', {
         email,
-        password,
+        password: encryptedPassword,
+        encryptionMethod: method,
         testConnection: true,
         isActive: false
       });

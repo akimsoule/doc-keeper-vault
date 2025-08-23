@@ -142,4 +142,5 @@ export interface MegaConfigForm {
   password: string;
   isActive?: boolean;
   testConnection?: boolean;
+  encryptionMethod?: 'rsa' | 'base64';
 }

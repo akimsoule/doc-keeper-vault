@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
+import RSAKeyPreloader from './components/RSAKeyPreloader';
 
 // Pages
 import Login from './components/Login';
@@ -78,6 +79,8 @@ const App: React.FC = () => {
     <Router>
       <AuthProvider>
         <div className="App">
+          {/* Préchargement de la clé RSA */}
+          <RSAKeyPreloader />
           <AppContent />
           <Toaster
             position="top-right"

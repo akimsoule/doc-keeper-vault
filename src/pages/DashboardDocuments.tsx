@@ -192,6 +192,30 @@ const DashboardDocuments: React.FC = () => {
       toast.error(handleApiError(error));
     }
   };
+  
+  const handleSyncMegaFiles = async () => {
+    try {
+      const result = await documentService.syncMegaFiles();
+      
+      if (result.syncedFiles > 0) {
+        toast.success(`${result.syncedFiles} document(s) synchronisé(s) depuis MEGA !`, {
+          duration: 4000,
+        });
+        
+        // Recharger les documents
+        const updatedResult = await documentService.getDocuments(searchParams);
+        setSearchResult(updatedResult);
+        setDocuments(updatedResult.documents);
+      } else {
+        toast.success('Tous les fichiers sont déjà synchronisés', {
+          duration: 3000,
+          icon: '👍',
+        });
+      }
+    } catch (error) {
+      toast.error(handleApiError(error));
+    }
+  };
 
   return (
     <>
@@ -218,6 +242,7 @@ const DashboardDocuments: React.FC = () => {
           onDelete={handleDelete}
           onDownload={handleDownload}
           onToggleFavorite={handleToggleFavorite}
+          onSyncMegaFiles={handleSyncMegaFiles}
         />
       </div>
 

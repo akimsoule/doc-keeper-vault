@@ -30,6 +30,15 @@ export class UserService {
     if (existingUser) {
       throw new Error('Un utilisateur avec cet email existe déjà');
     }
+    
+    // Vérifications de sécurité du mot de passe (après décodage potentiel)
+    if (data.password.length < 8) {
+      throw new Error('Le mot de passe doit contenir au moins 8 caractères');
+    }
+    
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(data.password)) {
+      throw new Error('Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial');
+    }
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
 

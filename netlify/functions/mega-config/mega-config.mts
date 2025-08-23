@@ -2,6 +2,8 @@ import { Handler } from '@netlify/functions';
 import { withAuth } from '../utils/middleware';
 import { errorResponse, successResponse } from '../utils/middleware';
 import { MegaConfigService } from '../../doc.core/services/megaConfigService';
+import { decodeBase64 } from '../utils/base64Utils';
+import { decryptForSession } from '../utils/rsaEncryption';
 import Joi from 'joi';
 
 const megaConfigService = new MegaConfigService();
@@ -12,12 +14,13 @@ const megaConfigSchema = Joi.object({
     'string.email': 'L\'email doit être une adresse email valide',
     'any.required': 'L\'email est requis'
   }),
-  password: Joi.string().min(6).required().messages({
-    'string.min': 'Le mot de passe doit contenir au moins 6 caractères',
+  password: Joi.string().required().messages({
     'any.required': 'Le mot de passe est requis'
   }),
   isActive: Joi.boolean().optional(),
-  testConnection: Joi.boolean().optional()
+  testConnection: Joi.boolean().optional(),
+  isEncoded: Joi.boolean().optional().default(false), // Pour compatibilité
+  encryptionMethod: Joi.string().valid('rsa', 'base64').default('base64')
 });
 
 export const handler: Handler = withAuth(async (event, context) => {
@@ -30,7 +33,7 @@ export const handler: Handler = withAuth(async (event, context) => {
         
       case 'POST':
       case 'PUT':
-        return await setMegaConfig(userId, event.body);
+        return await setMegaConfig(userId, event.body, event);
         
       case 'DELETE':
         return await deleteMegaConfig(userId);
@@ -52,7 +55,7 @@ async function getMegaConfig(userId: string) {
   return successResponse(config || {});
 }
 
-async function setMegaConfig(userId: string, body: string | null) {
+async function setMegaConfig(userId: string, body: string | null, event?: any) {
   if (!body) {
     return errorResponse(400, 'Corps de requête requis');
   }
@@ -62,7 +65,25 @@ async function setMegaConfig(userId: string, body: string | null) {
     return errorResponse(400, error.details[0].message);
   }
 
-  const { testConnection = false, ...configData } = value;
+  const { testConnection = false, isEncoded = false, encryptionMethod = 'base64', ...configData } = value;
+  
+  try {
+    // Déchiffrer le mot de passe selon la méthode
+    if (configData.password) {
+      // Récupérer le sessionId depuis les cookies
+      const cookies = event?.headers?.cookie || '';
+      const sessionMatch = cookies.match(/secure_session_id=([^;]+)/);
+      
+      if (encryptionMethod === 'rsa' && sessionMatch && sessionMatch[1]) {
+        configData.password = decryptForSession(configData.password, sessionMatch[1]);
+      } else if (encryptionMethod === 'base64' || isEncoded) {
+        configData.password = decodeBase64(configData.password);
+      }
+    }
+  } catch (err) {
+    console.error('Erreur lors du déchiffrement:', err);
+    return errorResponse(400, 'Erreur de déchiffrement des identifiants');
+  }
 
   // Tester la connexion si demandé
   if (testConnection) {
