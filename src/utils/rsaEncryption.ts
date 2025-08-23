@@ -67,7 +67,7 @@ export async function importRsaPublicKey(pemKey: string): Promise<CryptoKey> {
   
     // Décoder le Base64 en ArrayBuffer
     console.log('Décodage du contenu PEM en binaire');
-    const binaryDer = window.atob(pemContents);
+    const binaryDer = atob(pemContents);
     const binaryDerArray = new Uint8Array(binaryDer.length);
     for (let i = 0; i < binaryDer.length; i++) {
       binaryDerArray[i] = binaryDer.charCodeAt(i);
@@ -75,7 +75,7 @@ export async function importRsaPublicKey(pemKey: string): Promise<CryptoKey> {
   
     console.log('Importation de la clé dans WebCrypto');
     // Importer la clé pour une utilisation avec WebCrypto
-    const key = await window.crypto.subtle.importKey(
+    const key = await crypto.subtle.importKey(
       'spki',
       binaryDerArray.buffer,
       {
