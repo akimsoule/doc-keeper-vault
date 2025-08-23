@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 const baseHandler: Handler = async (event) => {
   try {
     const ip = event.headers['x-forwarded-for'] || event.headers['x-real-ip'] || 'unknown';
+    console.log(`[get-public-key] Requête reçue de l'IP: ${ip}`);
     
     // Générer ou récupérer un ID de session depuis le cookie
     let sessionId = '';
@@ -19,13 +20,29 @@ const baseHandler: Handler = async (event) => {
     
     if (sessionMatch && sessionMatch[1]) {
       sessionId = sessionMatch[1];
+      console.log(`[get-public-key] Session existante trouvée: ${sessionId.substring(0, 8)}...`);
     } else {
       // Générer un nouvel ID de session si aucun n'existe
       sessionId = uuidv4();
+      console.log(`[get-public-key] Nouvelle session créée: ${sessionId.substring(0, 8)}...`);
     }
     
     // Récupérer ou générer une paire de clés pour cette session
     const { publicKey } = getOrCreateKeyPairForSession(sessionId);
+    
+    // Log du format de la clé publique pour le débogage
+    if (publicKey) {
+      console.log(`[get-public-key] Clé publique générée, format valide: ${
+        publicKey.includes('-----BEGIN PUBLIC KEY-----') && 
+        publicKey.includes('-----END PUBLIC KEY-----')
+      }`);
+      console.log(`[get-public-key] Taille de la clé: ${publicKey.length} caractères`);
+      // Log de l'encodage de la clé pour vérifier si elle est bien formée
+      const keyLines = publicKey.split('\n').length;
+      console.log(`[get-public-key] Nombre de lignes dans la clé: ${keyLines}`);
+    } else {
+      console.error('[get-public-key] Erreur: Clé publique manquante ou invalide');
+    }
     
     // Définir un cookie pour maintenir la session (non HttpOnly pour permettre l'accès JS)
     const cookieOptions = [
