@@ -134,7 +134,7 @@ export class BackupService {
         },
       });
 
-      let logs: any[] = [];
+      let logs: BackupData['logs'] = [];
       if (includeLogs) {
         const logCutoffDate = new Date(Date.now() - maxLogAge * 24 * 60 * 60 * 1000);
         const rawLogs = await prisma.log.findMany({

@@ -9,7 +9,7 @@ import {
   validateHttpMethod,
   extractResourceId,
   handleErrors
-} from './middleware.mjs';
+} from './shared/middleware.mts';
 
 // Initialisation des services
 const logService = new LogService();

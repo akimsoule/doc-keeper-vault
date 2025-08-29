@@ -11,7 +11,7 @@ import {
   extractResourceId,
   sanitizeString,
   handleErrors
-} from './middleware.mjs';
+} from './shared/middleware.mts';
 
 // Initialisation des services
 const logService = new LogService();

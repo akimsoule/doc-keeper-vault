@@ -10,7 +10,7 @@ import {
   validateHttpMethod,
   safeJsonParse,
   handleErrors
-} from './middleware.mjs';
+} from './shared/middleware.mts';
 
 // Initialisation des services
 const logService = new LogService();

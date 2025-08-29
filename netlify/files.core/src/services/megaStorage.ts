@@ -108,7 +108,7 @@ export class MegaStorageService {
 
     return new Promise((resolve, reject) => {
       const uploadStream = folder.upload({ name, size: buffer.length }, buffer);
-      uploadStream.on('complete', (file: any) => {
+      uploadStream.on('complete', (file: { nodeId: string }) => {
         resolve(file.nodeId);
       });
       uploadStream.on('error', reject);
@@ -124,7 +124,7 @@ export class MegaStorageService {
     const storage = await this.getStorage();
     console.log(`🔍 Recherche du fichier avec ID: ${fileId}`);
     
-    let searchFiles: any[];
+    let searchFiles: Array<{ nodeId: string; name?: string; delete?: () => Promise<void> }>;
     
     if (folderId) {
       // Chercher uniquement dans le dossier spécifié
@@ -132,11 +132,11 @@ export class MegaStorageService {
       if (!folder) {
         throw new Error(`Dossier avec ID ${folderId} non trouvé`);
       }
-      searchFiles = Object.values(folder.children || {});
+      searchFiles = Object.values(folder.children || {}).filter(child => child.nodeId !== undefined) as Array<{ nodeId: string; name?: string; delete?: () => Promise<void> }>;
       console.log(`📁 Recherche dans le dossier spécifique: ${searchFiles.length} fichiers`);
     } else {
       // Chercher dans tout le storage
-      searchFiles = Object.values(storage.files);
+      searchFiles = Object.values(storage.files).filter(f => f.nodeId !== undefined) as Array<{ nodeId: string; name?: string; delete?: () => Promise<void> }>;
       console.log(`📁 ${searchFiles.length} fichiers totaux dans le storage`);
     }
     
@@ -154,8 +154,12 @@ export class MegaStorageService {
     }
     
     console.log(`✅ Fichier trouvé: ${file.name} (ID: ${file.nodeId})`);
-    await file.delete();
-    console.log(`🗑️ Fichier supprimé avec succès`);
+    if (typeof file.delete === 'function') {
+      await file.delete();
+      console.log(`🗑️ Fichier supprimé avec succès`);
+    } else {
+      throw new Error('La méthode de suppression du fichier est indisponible');
+    }
   }
 
   /**
@@ -199,7 +203,7 @@ export class MegaStorageService {
 
     return new Promise((resolve, reject) => {
       const uploadStream = parent.upload({ name, size: buffer.length }, buffer);
-      uploadStream.on('complete', (file: any) => {
+      uploadStream.on('complete', (file: { nodeId: string }) => {
         resolve(file.nodeId);
       });
       uploadStream.on('error', reject);
@@ -230,7 +234,7 @@ export class MegaStorageService {
     
     console.log(`📁 Scanning ${folderId ? 'dossier spécifique' : 'dossier racine'}: ${files.length} fichiers trouvés`);
     
-    const filesWithContent = [];
+    const filesWithContent: { fileId: string; name: string; buffer: Buffer }[] = [];
 
     for (const file of files) {
       if (!file.nodeId || !file.name) continue; // Ignorer les fichiers sans ID ou nom

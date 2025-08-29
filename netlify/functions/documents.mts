@@ -8,13 +8,12 @@ import {
   createErrorResponse,
   createSuccessResponse,
   validateHttpMethod,
-  validateRequiredFields,
   extractResourceId,
   parseFormData,
   validatePagination,
   sanitizeString,
   handleErrors
-} from './middleware.mjs';
+} from './shared/middleware.mts';
 
 // Initialisation des services
 // Initialisation des services

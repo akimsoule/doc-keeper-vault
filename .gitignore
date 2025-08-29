@@ -25,3 +25,15 @@ dist-ssr
 
 # Local Netlify folder
 .netlify
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# Database files
+prisma/dev.db
+prisma/dev.db-journal
+*.sqlite
+*.db
