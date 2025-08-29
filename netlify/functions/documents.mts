@@ -308,8 +308,6 @@ async function handleUpdateDocument(
   try {
     const body = await request.json();
 
-    console.log(body);
-
     // Sanitiser les données d'entrée
     const updateData: any = {};
     if (body.name) updateData.name = sanitizeString(body.name);
@@ -319,12 +317,6 @@ async function handleUpdateDocument(
       updateData.description = sanitizeString(body.description);
     if (body.tags) updateData.tags = body.tags;
     if (typeof body.isFavorite === 'boolean') updateData.isFavorite = body.isFavorite;
-
-    console.log({
-      documentId,
-      updateData,
-      userId: user.userId
-    })
 
     const updatedDocument = await documentService.updateDocument(
       documentId,

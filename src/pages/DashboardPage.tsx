@@ -149,8 +149,6 @@ export const DashboardPage = () => {
 
       // Utiliser notre API backend pour obtenir le contenu du document
       const fileData = await apiService.downloadFile(id);
-
-      console.log(fileData);
       
       if (fileData.dataUrl) {
         // Mettre à jour le modal avec les données du fichier

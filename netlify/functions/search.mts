@@ -40,8 +40,6 @@ export default handleErrors(async (request: Request, context: Context) => {
   const pathSegments = url.pathname.split('/').filter(segment => segment !== '');
   const action = pathSegments[pathSegments.length - 1];
 
-  console.log('Search function invoked with action:', action, 'by user:', user.userId, 'url:', url.href);
-
   switch (request.method) {
     case 'GET':
       switch (action) {

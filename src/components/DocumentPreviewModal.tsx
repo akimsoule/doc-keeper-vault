@@ -35,10 +35,7 @@ export const DocumentPreviewModal = ({
         }
         const byteArray = new Uint8Array(byteNumbers);
         const type = getMimeType(fileData.type, document?.name, fileData.dataUrl);
-        console.log("Type MIME:", type);
         const blob = new Blob([byteArray], { type });
-        console.log("Blob:", blob);
-
         const url = URL.createObjectURL(blob);
         setBlobUrl(url);
 
@@ -69,7 +66,6 @@ export const DocumentPreviewModal = ({
     if (dataUrl && dataUrl.startsWith('data:')) {
       const mimeTypeMatch = dataUrl.match(/^data:([^;]+)/);
       if (mimeTypeMatch) {
-        console.log("Type MIME extrait de dataUrl:", mimeTypeMatch[1]);
         return mimeTypeMatch[1];
       }
     }
@@ -121,9 +117,7 @@ export const DocumentPreviewModal = ({
       'gz': 'application/gzip'
     };
     
-    console.log("fileType:", fileType, "fileName:", fileName, "extension:", extension);
     const mimeType = mimeTypes[extension] || 'application/octet-stream';
-    console.log("Type MIME calculé:", mimeType);
     return mimeType;
   };
 

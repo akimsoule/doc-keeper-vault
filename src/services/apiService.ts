@@ -286,8 +286,6 @@ class ApiService {
       page: number;
       limit: number;
     }>(response);
-
-    console.log("Document backend:", result);
     
     // Mettre en cache le résultat brut (avant adaptation)
     cacheService.set(cacheKey, result, cacheService.TTL.documents);
