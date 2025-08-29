@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Files, Bell, User, LogOut, UserPlus, Settings } from 'lucide-react';
+import { Files, Bell, User, LogOut, UserPlus, Settings, BarChart3 } from 'lucide-react';
 import { ThemeSelector } from '../components/ThemeSelector';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -20,9 +20,9 @@ export const Layout = ({ children }: LayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen transition-colors duration-300">
+    <div className="min-h-screen flex flex-col transition-colors duration-300">
       {/* Header */}
-      <header className="navbar bg-base-100/80 backdrop-blur-md border-b border-base-300/50 sticky top-0 z-50">
+      <header className="navbar bg-base-100/80 backdrop-blur-md border-b border-base-300/50 sticky top-0 z-50 flex-shrink-0">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8">
           <div className="navbar-start">
             <Link to={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-3">
@@ -41,6 +41,13 @@ export const Layout = ({ children }: LayoutProps) => {
             <div className="flex items-center gap-1 sm:gap-2">
               {isAuthenticated && (
                 <>
+                  <Link 
+                    to="/dashboard/stats" 
+                    className="btn btn-ghost btn-sm btn-square"
+                    title="Statistiques"
+                  >
+                    <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </Link>
                   <button className="btn btn-ghost btn-sm btn-square">
                     <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
@@ -59,7 +66,8 @@ export const Layout = ({ children }: LayoutProps) => {
                     <span className="text-sm font-medium hidden sm:inline">{user?.name}</span>
                   </div>
                   <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-                    <li><Link to="/profile"><User className="w-4 h-4" />Profil</Link></li>
+                    <li><Link to="/dashboard/profile"><User className="w-4 h-4" />Profil</Link></li>
+                    <li><Link to="/dashboard/stats"><BarChart3 className="w-4 h-4" />Statistiques</Link></li>
                     <li><Link to="/settings"><Settings className="w-4 h-4" />Paramètres</Link></li>
                     <li><button onClick={handleLogout}><LogOut className="w-4 h-4" />Déconnexion</button></li>
                   </ul>
@@ -88,12 +96,12 @@ export const Layout = ({ children }: LayoutProps) => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="flex-1 container mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="footer footer-center p-4 sm:p-6 bg-base-200/60 backdrop-blur-sm border-t border-base-300/50 text-base-content">
+      <footer className="footer footer-center p-4 sm:p-6 bg-base-200/60 backdrop-blur-sm border-t border-base-300/50 text-base-content flex-shrink-0">
         <div className="max-w-7xl mx-auto w-full">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
             <p className="text-xs sm:text-sm text-base-content/60 text-center sm:text-left">

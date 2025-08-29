@@ -5,6 +5,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import './App.css';
 
@@ -32,11 +33,22 @@ function App() {
         />
         
         <Route
-          path="/profile"
+          path="/dashboard/profile"
           element={
             <ProtectedRoute>
               <Layout>
                 <ProfilePage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/dashboard/stats"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <StatsPage />
               </Layout>
             </ProtectedRoute>
           }

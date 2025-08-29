@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Files } from 'lucide-react';
+import { Files, BarChart3 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { DocumentCard } from '../components/DocumentCard';
 import { UploadArea } from '../components/UploadArea';
 import { ViewControls } from '../components/ViewControls';
-import { Stats } from '../components/Stats';
-import { QuickStats } from '../components/QuickStats';
 import { DocumentPreviewModal } from '../components/DocumentPreviewModal';
 import { categories } from '../data/mockData';
 import { useDocuments } from '../hooks/useDocuments';
@@ -49,7 +48,6 @@ export const DashboardPage = () => {
     documents,
     loading: documentsLoading,
     error: documentsError,
-    total,
     uploadDocument,
     updateDocument,
     deleteDocument,
@@ -85,19 +83,6 @@ export const DashboardPage = () => {
       return matchesSearch && matchesCategory;
     });
   }, [documents, searchTerm, selectedCategory]);
-
-  // Statistiques
-  const stats = useMemo(() => {
-    // Protection contre undefined/null
-    const safeDocuments = Array.isArray(documents) ? documents : [];
-    
-    return {
-      totalDocuments: total || safeDocuments.length,
-      totalSize: safeDocuments.reduce((sum, doc) => sum + (doc.size || 0), 0),
-      favoriteCount: safeDocuments.filter(doc => doc.favorite).length,
-      sharedCount: safeDocuments.filter(doc => doc.shared).length,
-    };
-  }, [documents, total]);
 
   // Gestion des erreurs
   useEffect(() => {
@@ -245,11 +230,17 @@ export const DashboardPage = () => {
 
   return (
     <>
-      {/* Dashboard avec statistiques et préférences */}
-      <QuickStats className="mb-8" />
-
-      {/* Stats */}
-      <Stats {...stats} />
+      {/* Lien vers les statistiques détaillées */}
+      <div className="mb-6">
+        <Link
+          to="/dashboard/stats"
+          className="btn btn-outline btn-primary gap-2 float-right"
+        >
+          <BarChart3 className="w-4 h-4" />
+          Voir les statistiques
+        </Link>
+        <div className="clear-both"></div>
+      </div>
 
       {/* Upload Area */}
       <UploadArea onFileUpload={handleFileUpload} />
