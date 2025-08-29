@@ -42,35 +42,37 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onFileUpload }) => {
         onDrop={handleDrop}
         className={`relative border-2 border-dashed rounded-lg sm:rounded-xl p-4 sm:p-8 text-center transition-all duration-200 ${
           isDragging
-            ? 'border-blue-500 bg-blue-50/50 scale-105'
-            : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/30'
+            ? 'border-primary bg-primary/10 scale-105'
+            : 'border-base-300 hover:border-primary/60 hover:bg-primary/5'
         }`}
       >
         <div className="flex flex-col items-center gap-3 sm:gap-4">
-          <div className={`p-4 sm:p-6 rounded-full transition-all duration-200 ${
-            isDragging ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-500'
+          <div className={`flex transition-all duration-200 ${
+            isDragging ? 'bg-primary text-primary-content' : 'bg-primary/10 text-primary'
           }`}>
-            <Upload className="w-6 h-6 sm:w-8 sm:h-8" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center">
+              <Upload className="w-6 h-6 sm:w-8 sm:h-8" />
+            </div>
           </div>
           
           <div>
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-base sm:text-lg font-semibold text-base-content mb-2">
               Glissez-déposez vos fichiers ici
             </h3>
-            <p className="text-sm sm:text-base text-gray-500 mb-4">
+            <p className="text-sm sm:text-base text-base-content/60 mb-4">
               ou cliquez pour sélectionner des fichiers
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 text-sm sm:text-base"
+                className="btn btn-primary w-full sm:w-auto gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Ajouter des fichiers
               </button>
               
-              <button className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm sm:text-base">
+              <button className="btn btn-outline w-full sm:w-auto gap-2">
                 <FolderPlus className="w-4 h-4" />
                 Créer un dossier
               </button>

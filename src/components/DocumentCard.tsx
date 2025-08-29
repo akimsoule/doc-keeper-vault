@@ -12,6 +12,7 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { Document } from '../types';
+import { ConfirmModal } from './ConfirmModal';
 
 interface DocumentCardProps {
   document: Document;
@@ -50,64 +51,77 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   viewMode,
 }) => {
   const [showActions, setShowActions] = React.useState(false);
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const FileIcon = getFileIcon(document.type);
+
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = () => {
+    onDelete(document.id);
+  };
 
   if (viewMode === 'list') {
     return (
       <div 
-        className="group bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-200 hover:bg-white"
+        className="group card card-compact bg-base-100/80 backdrop-blur-sm border border-base-300 shadow-sm hover:shadow-lg transition-all duration-200"
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-            <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg flex-shrink-0">
-              <FileIcon className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm sm:text-base font-medium text-gray-900 truncate">{document.name}</h3>
-              <div className="flex items-center gap-2 sm:gap-4 mt-1 text-xs sm:text-sm text-gray-500">
-                <span>{formatFileSize(document.size)}</span>
-                <span className="hidden sm:inline">•</span>
-                <span className="hidden sm:inline">{formatDate(document.uploadDate)}</span>
-                <span className="hidden md:inline">•</span>
-                <span className="capitalize hidden md:inline">{document.category}</span>
+        <div className="card-body">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+              <div className="flex">
+                <div className="bg-primary/10 text-primary rounded-lg w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+                  <FileIcon className="w-4 h-4 sm:w-6 sm:h-6" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="card-title text-sm sm:text-base truncate">{document.name}</h3>
+                <div className="flex items-center gap-2 sm:gap-4 mt-1 text-xs sm:text-sm text-base-content/60">
+                  <span>{formatFileSize(document.size)}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="hidden sm:inline">{formatDate(document.uploadDate)}</span>
+                  <span className="hidden md:inline">•</span>
+                  <span className="capitalize hidden md:inline">{document.category}</span>
+                </div>
+              </div>
+              <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+                {document.tags.slice(0, 2).map((tag) => (
+                  <span key={tag} className="badge badge-ghost badge-sm whitespace-nowrap">
+                    {tag}
+                  </span>
+                ))}
+                {document.tags.length > 2 && (
+                  <span className="text-xs text-base-content/40">+{document.tags.length - 2}</span>
+                )}
               </div>
             </div>
-            <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
-              {document.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md whitespace-nowrap">
-                  {tag}
-                </span>
-              ))}
-              {document.tags.length > 2 && (
-                <span className="text-xs text-gray-400">+{document.tags.length - 2}</span>
-              )}
+            <div className={`flex items-center gap-1 sm:gap-2 transition-opacity duration-200 flex-shrink-0 ${showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'}`}>
+              <button
+                onClick={() => onToggleFavorite(document.id)}
+                className={`btn btn-ghost btn-sm btn-square ${
+                  document.favorite
+                    ? 'text-warning hover:bg-warning/20'
+                    : 'text-base-content/40 hover:text-warning hover:bg-warning/20'
+                }`}
+              >
+                <Star className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${document.favorite ? 'fill-current' : ''}`} />
+              </button>
+              <button className="hidden sm:flex btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-info hover:bg-info/20">
+                <Download className="w-4 h-4" />
+              </button>
+              <button className="hidden sm:flex btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-success hover:bg-success/20">
+                <Share2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleDeleteClick}
+                className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-error hover:bg-error/20"
+              >
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
             </div>
-          </div>
-          <div className={`flex items-center gap-1 sm:gap-2 transition-opacity duration-200 flex-shrink-0 ${showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'}`}>
-            <button
-              onClick={() => onToggleFavorite(document.id)}
-              className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
-                document.favorite
-                  ? 'text-yellow-500 hover:bg-yellow-50'
-                  : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50'
-              }`}
-            >
-              <Star className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${document.favorite ? 'fill-current' : ''}`} />
-            </button>
-            <button className="hidden sm:block p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-200">
-              <Download className="w-4 h-4" />
-            </button>
-            <button className="hidden sm:block p-2 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded-lg transition-all duration-200">
-              <Share2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onDelete(document.id)}
-              className="p-1.5 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
-            >
-              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
           </div>
         </div>
       </div>
@@ -116,70 +130,85 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 
   return (
     <div 
-      className="group bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:bg-white hover:-translate-y-1"
+      className="group card bg-base-100/80 backdrop-blur-sm border border-base-300 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
-      <div className="flex justify-between items-start mb-3 sm:mb-4">
-        <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl">
-          <FileIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+      <div className="card-body">
+        <div className="flex justify-between items-start mb-3 sm:mb-4">
+          <div className="flex">
+            <div className="bg-primary/10 text-primary rounded-lg w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center">
+              <FileIcon className="w-6 h-6 sm:w-8 sm:h-8" />
+            </div>
+          </div>
+          <div className={`flex items-center gap-1 transition-opacity duration-200 ${showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'}`}>
+            <button
+              onClick={() => onToggleFavorite(document.id)}
+              className={`btn btn-ghost btn-sm btn-square ${
+                document.favorite
+                  ? 'text-warning hover:bg-warning/20'
+                  : 'text-base-content/40 hover:text-warning hover:bg-warning/20'
+              }`}
+            >
+              <Star className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${document.favorite ? 'fill-current' : ''}`} />
+            </button>
+            <button className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-base-content/60">
+              <MoreHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          </div>
         </div>
-        <div className={`flex items-center gap-1 transition-opacity duration-200 ${showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'}`}>
-          <button
-            onClick={() => onToggleFavorite(document.id)}
-            className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
-              document.favorite
-                ? 'text-yellow-500 hover:bg-yellow-50'
-                : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50'
-            }`}
-          >
-            <Star className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${document.favorite ? 'fill-current' : ''}`} />
-          </button>
-          <button className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
-            <MoreHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
+        
+        <div className="space-y-2 sm:space-y-3">
+          <h3 className="card-title text-sm sm:text-base line-clamp-2 group-hover:text-primary transition-colors duration-200">
+            {document.name}
+          </h3>
+          
+          <div className="flex items-center justify-between text-xs sm:text-sm text-base-content/60">
+            <span>{formatFileSize(document.size)}</span>
+            <span className="hidden sm:inline">{formatDate(document.uploadDate)}</span>
+          </div>
+          
+          <div className="flex flex-wrap gap-1">
+            {document.tags.slice(0, 2).map((tag) => (
+              <span key={tag} className="badge badge-ghost badge-sm whitespace-nowrap">
+                {tag}
+              </span>
+            ))}
+            {document.tags.length > 2 && (
+              <span className="text-xs text-base-content/40">+{document.tags.length - 2}</span>
+            )}
+          </div>
+          
+          <div className={`card-actions justify-between transition-opacity duration-200 ${showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'}`}>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <button className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-info hover:bg-info/20">
+                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+              <button className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-success hover:bg-success/20">
+                <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+              <button
+                onClick={handleDeleteClick}
+                className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-error hover:bg-error/20"
+              >
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+            <span className="text-xs text-base-content/40 capitalize hidden sm:inline">{document.category}</span>
+          </div>
         </div>
       </div>
       
-      <div className="space-y-2 sm:space-y-3">
-        <h3 className="text-sm sm:text-base font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-200">
-          {document.name}
-        </h3>
-        
-        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
-          <span>{formatFileSize(document.size)}</span>
-          <span className="hidden sm:inline">{formatDate(document.uploadDate)}</span>
-        </div>
-        
-        <div className="flex flex-wrap gap-1">
-          {document.tags.slice(0, 2).map((tag) => (
-            <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md whitespace-nowrap">
-              {tag}
-            </span>
-          ))}
-          {document.tags.length > 2 && (
-            <span className="text-xs text-gray-400">+{document.tags.length - 2}</span>
-          )}
-        </div>
-        
-        <div className={`flex justify-between items-center transition-opacity duration-200 ${showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'}`}>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <button className="p-1.5 sm:p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-200">
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-            <button className="p-1.5 sm:p-2 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded-lg transition-all duration-200">
-              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-            <button
-              onClick={() => onDelete(document.id)}
-              className="p-1.5 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
-            >
-              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-          </div>
-          <span className="text-xs text-gray-400 capitalize hidden sm:inline">{document.category}</span>
-        </div>
-      </div>
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        title="Supprimer le document"
+        message={`Êtes-vous sûr de vouloir supprimer "${document.name}" ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        type="danger"
+      />
     </div>
   );
 };
