@@ -65,31 +65,16 @@ async function handleFileDownload(documentId: string, downloadType: string, user
     }
 
     try {
-      if (downloadType === 'base64') {
-        // Récupérer l'URL data base64
-        const dataUrl = await megaStorageService.getBase64FileUrl(document.fileId);
-        
-        return createSuccessResponse({
-          documentId: document.id,
-          name: document.name,
-          type: document.type,
-          dataUrl: dataUrl,
-          size: document.size
-        });
-
-      } else {
-        // Récupérer l'URL de téléchargement temporaire
-        const downloadUrl = await megaStorageService.getFileUrl(document.fileId);
-        
-        return createSuccessResponse({
-          documentId: document.id,
-          name: document.name,
-          type: document.type,
-          downloadUrl: downloadUrl,
-          size: document.size,
-          expiresIn: '1 hour'
-        });
-      }
+      // Toujours récupérer le contenu en base64 pour éviter d'exposer les URLs MEGA
+      const dataUrl = await megaStorageService.getBase64FileUrl(document.fileId);
+      
+      return createSuccessResponse({
+        documentId: document.id,
+        name: document.name,
+        type: document.type,
+        dataUrl: dataUrl,
+        size: document.size
+      });
 
     } catch (fileError) {
       console.error('Erreur lors de la récupération du fichier:', fileError);

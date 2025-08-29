@@ -1,4 +1,5 @@
-import { Document } from '../types';
+import { Document } from "../types";
+import { cacheService } from "./cacheService";
 
 // Types API
 interface User {
@@ -33,7 +34,9 @@ const adaptBackendDocument = (backendDoc: BackendDocument): Document => ({
   type: backendDoc.type,
   size: backendDoc.size,
   category: backendDoc.category,
-  tags: backendDoc.tags ? backendDoc.tags.split(',').filter(tag => tag.trim()) : [],
+  tags: backendDoc.tags
+    ? backendDoc.tags.split(",").filter((tag) => tag.trim())
+    : [],
   uploadDate: new Date(backendDoc.createdAt),
   lastModified: new Date(backendDoc.modifiedAt),
   favorite: backendDoc.isFavorite,
@@ -87,9 +90,9 @@ interface FileDownload {
 }
 
 interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
+  theme: "light" | "dark" | "auto";
   language: string;
-  viewMode: 'grid' | 'list';
+  viewMode: "grid" | "list";
   itemsPerPage: number;
   notifications: boolean;
 }
@@ -110,51 +113,53 @@ interface BackupStatus {
   lastBackup: string;
   backupCount: number;
   nextScheduled: string;
-  status: 'idle' | 'running' | 'completed' | 'error';
+  status: "idle" | "running" | "completed" | "error";
 }
 
 interface Backup {
   id: string;
-  type: 'full' | 'incremental' | 'documents-only';
+  type: "full" | "incremental" | "documents-only";
   createdAt: string;
   size: number;
   description?: string;
-  status: 'completed' | 'failed';
+  status: "completed" | "failed";
 }
 
 // Service API pour interagir avec le backend Netlify
 class ApiService {
-  private baseUrl = '/api';
+  private baseUrl = "/api";
   private token: string | null = null;
 
   // Configuration des headers avec authentification
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
-    
+
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
-    
+
     return headers;
   }
 
   // Configuration des headers pour multipart/form-data
   private getFormHeaders(): HeadersInit {
     const headers: HeadersInit = {};
-    
+
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
-    
+
     return headers;
   }
 
   // Gestion des erreurs API
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Erreur réseau' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Erreur réseau" }));
       throw new Error(error.error || `Erreur HTTP ${response.status}`);
     }
     return response.json();
@@ -174,57 +179,57 @@ class ApiService {
 
   async login(email: string, password: string) {
     const response = await fetch(`${this.baseUrl}/auth/login`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ email, password }),
     });
-    
+
     const result = await this.handleResponse<LoginResponse>(response);
-    
+
     if (result.token) {
       this.setToken(result.token);
     }
-    
+
     return result;
   }
 
   async register(email: string, name: string, password: string) {
     const response = await fetch(`${this.baseUrl}/auth/register`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ email, name, password }),
     });
-    
+
     const result = await this.handleResponse<LoginResponse>(response);
-    
+
     if (result.token) {
       this.setToken(result.token);
     }
-    
+
     return result;
   }
 
   async refreshToken() {
     const response = await fetch(`${this.baseUrl}/auth/refresh`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
     });
-    
+
     const result = await this.handleResponse<LoginResponse>(response);
-    
+
     if (result.token) {
       this.setToken(result.token);
     }
-    
+
     return result;
   }
 
   async verifyToken() {
     const response = await fetch(`${this.baseUrl}/auth/verify`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
     });
-    
+
     return this.handleResponse<{
       valid: boolean;
       user: User;
@@ -240,39 +245,81 @@ class ApiService {
     search?: string;
     tag?: string;
   }) {
-    const searchParams = new URLSearchParams();
+    // Créer une clé de cache
+    const cacheKey = cacheService.generateKey('getDocuments', params);
     
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.category) searchParams.append('category', params.category);
-    if (params?.search) searchParams.append('search', params.search);
-    if (params?.tag) searchParams.append('tag', params.tag);
-    
-    const url = `${this.baseUrl}/documents${searchParams.toString() ? `?${searchParams}` : ''}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-    
-    return this.handleResponse<{
+    // Vérifier le cache
+    const cached = cacheService.get<{
       documents: BackendDocument[];
       total: number;
       page: number;
       limit: number;
-    }>(response).then(result => ({
+    }>(cacheKey);
+    
+    if (cached) {
+      return {
+        ...cached,
+        documents: cached.documents.map(adaptBackendDocument),
+      };
+    }
+
+    const searchParams = new URLSearchParams();
+
+    if (params?.page) searchParams.append("page", params.page.toString());
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.category) searchParams.append("category", params.category);
+    if (params?.search) searchParams.append("search", params.search);
+    if (params?.tag) searchParams.append("tag", params.tag);
+
+    const url = `${this.baseUrl}/documents${
+      searchParams.toString() ? `?${searchParams}` : ""
+    }`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: this.getHeaders(),
+    });
+
+    const result = await this.handleResponse<{
+      documents: BackendDocument[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(response);
+
+    console.log("Document backend:", result);
+    
+    // Mettre en cache le résultat brut (avant adaptation)
+    cacheService.set(cacheKey, result, cacheService.TTL.documents);
+    
+    return {
       ...result,
       documents: result.documents.map(adaptBackendDocument),
-    }));
+    };
   }
 
   async getDocument(id: string) {
+    // Créer une clé de cache
+    const cacheKey = cacheService.generateKey('getDocument', { id });
+    
+    // Vérifier le cache
+    const cached = cacheService.get<BackendDocument>(cacheKey);
+    
+    if (cached) {
+      return adaptBackendDocument(cached);
+    }
+
     const response = await fetch(`${this.baseUrl}/documents/${id}`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
+
+    const result = await this.handleResponse<BackendDocument>(response);
     
-    return this.handleResponse<BackendDocument>(response).then(adaptBackendDocument);
+    // Mettre en cache le résultat brut
+    cacheService.set(cacheKey, result, cacheService.TTL.document);
+    
+    return adaptBackendDocument(result);
   }
 
   async createDocument(data: {
@@ -283,87 +330,130 @@ class ApiService {
     tags?: string[];
   }) {
     const response = await fetch(`${this.baseUrl}/documents`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
+
+    const result = await this.handleResponse<BackendDocument>(response);
     
-    return this.handleResponse<BackendDocument>(response).then(adaptBackendDocument);
+    // Invalider le cache des documents
+    cacheService.invalidate('getDocuments');
+    cacheService.invalidate('getStats');
+    cacheService.invalidate('getUserStats');
+    
+    return adaptBackendDocument(result);
   }
 
-  async uploadDocument(file: File, data: {
-    name?: string;
-    type?: string;
-    category?: string;
-    description?: string;
-    tags?: string[];
-  }) {
+  async uploadDocument(
+    file: File,
+    data: {
+      name?: string;
+      type?: string;
+      category?: string;
+      description?: string;
+      tags?: string[];
+    }
+  ) {
     const formData = new FormData();
-    formData.append('file', file);
-    
-    if (data.name) formData.append('name', data.name);
-    if (data.type) formData.append('type', data.type);
-    if (data.category) formData.append('category', data.category);
-    if (data.description) formData.append('description', data.description);
-    if (data.tags) formData.append('tags', JSON.stringify(data.tags));
-    
+    formData.append("file", file);
+
+    if (data.name) formData.append("name", data.name);
+    if (data.type) formData.append("type", data.type);
+    if (data.category) formData.append("category", data.category);
+    if (data.description) formData.append("description", data.description);
+    if (data.tags) formData.append("tags", JSON.stringify(data.tags));
+
     const response = await fetch(`${this.baseUrl}/documents`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getFormHeaders(),
       body: formData,
     });
+
+    const result = await this.handleResponse<BackendDocument>(response);
     
-    return this.handleResponse<BackendDocument>(response).then(adaptBackendDocument);
+    // Invalider le cache des documents
+    cacheService.invalidate('getDocuments');
+    cacheService.invalidate('getStats');
+    cacheService.invalidate('getUserStats');
+    
+    return adaptBackendDocument(result);
   }
 
-  async updateDocument(id: string, data: {
-    name?: string;
-    type?: string;
-    category?: string;
-    description?: string;
-    tags?: string[];
-    isFavorite?: boolean; // Ajout du champ favorite
-  }) {
+  async updateDocument(
+    id: string,
+    data: {
+      name?: string;
+      type?: string;
+      category?: string;
+      description?: string;
+      tags?: string[];
+      isFavorite?: boolean; // Ajout du champ favorite
+    }
+  ) {
     const response = await fetch(`${this.baseUrl}/documents/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
+
+    const result = await this.handleResponse<BackendDocument>(response);
     
-    return this.handleResponse<BackendDocument>(response).then(adaptBackendDocument);
+    // Invalider le cache des documents et du document spécifique
+    cacheService.invalidate('getDocuments');
+    cacheService.invalidateKey(cacheService.generateKey('getDocument', { id }));
+    cacheService.invalidate('getStats');
+    cacheService.invalidate('getUserStats');
+    
+    return adaptBackendDocument(result);
   }
 
   async deleteDocument(id: string) {
     const response = await fetch(`${this.baseUrl}/documents/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: this.getHeaders(),
     });
+
+    const result = await this.handleResponse<{ message: string }>(response);
     
-    return this.handleResponse<{ message: string }>(response);
+    // Invalider le cache des documents et du document spécifique
+    cacheService.invalidate('getDocuments');
+    cacheService.invalidateKey(cacheService.generateKey('getDocument', { id }));
+    cacheService.invalidateKey(cacheService.generateKey('downloadFile', { documentId: id }));
+    cacheService.invalidate('getStats');
+    cacheService.invalidate('getUserStats');
+    
+    return result;
   }
 
   // === RECHERCHE ===
 
-  async search(query: string, params?: {
-    limit?: number;
-    type?: string;
-    category?: string;
-    tag?: string;
-  }) {
+  async search(
+    query: string,
+    params?: {
+      limit?: number;
+      type?: string;
+      category?: string;
+      tag?: string;
+    }
+  ) {
     const searchParams = new URLSearchParams();
-    searchParams.append('q', query);
-    
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.category) searchParams.append('category', params.category);
-    if (params?.tag) searchParams.append('tag', params.tag);
-    
-    const response = await fetch(`${this.baseUrl}/search/search?${searchParams}`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-    
-    return this.handleResponse<SearchResult>(response).then(result => ({
+    searchParams.append("q", query);
+
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.type) searchParams.append("type", params.type);
+    if (params?.category) searchParams.append("category", params.category);
+    if (params?.tag) searchParams.append("tag", params.tag);
+
+    const response = await fetch(
+      `${this.baseUrl}/search/search?${searchParams}`,
+      {
+        method: "GET",
+        headers: this.getHeaders(),
+      }
+    );
+
+    return this.handleResponse<SearchResult>(response).then((result) => ({
       ...result,
       results: result.results.map(adaptBackendDocument),
     }));
@@ -381,75 +471,156 @@ class ApiService {
     limit?: number;
   }) {
     const response = await fetch(`${this.baseUrl}/search/advanced-search`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify(criteria),
     });
-    
-    return this.handleResponse<AdvancedSearchResult>(response).then(result => ({
-      ...result,
-      results: result.results.map(adaptBackendDocument),
-    }));
+
+    return this.handleResponse<AdvancedSearchResult>(response).then(
+      (result) => ({
+        ...result,
+        results: result.results.map(adaptBackendDocument),
+      })
+    );
   }
 
   async getStats() {
+    // Créer une clé de cache
+    const cacheKey = cacheService.generateKey('getStats');
+    
+    // Vérifier le cache
+    const cached = cacheService.get<Stats>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
     const response = await fetch(`${this.baseUrl}/search/stats`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
+
+    const result = await this.handleResponse<Stats>(response);
     
-    return this.handleResponse<Stats>(response);
+    // Mettre en cache le résultat
+    cacheService.set(cacheKey, result, cacheService.TTL.stats);
+    
+    return result;
   }
 
   async getUserStats() {
+    // Créer une clé de cache
+    const cacheKey = cacheService.generateKey('getUserStats');
+    
+    // Vérifier le cache
+    const cached = cacheService.get<Stats>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
     const response = await fetch(`${this.baseUrl}/search/user-stats`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
+
+    const result = await this.handleResponse<Stats>(response);
     
-    return this.handleResponse<Stats>(response);
+    // Mettre en cache le résultat
+    cacheService.set(cacheKey, result, cacheService.TTL.userStats);
+    
+    return result;
   }
 
   // === TAGS ===
 
   async getTags() {
+    // Créer une clé de cache
+    const cacheKey = cacheService.generateKey('getTags');
+    
+    // Vérifier le cache
+    const cached = cacheService.get<Tag[]>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
     const response = await fetch(`${this.baseUrl}/tags`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
+
+    const result = await this.handleResponse<Tag[]>(response);
     
-    return this.handleResponse<Tag[]>(response);
+    // Mettre en cache le résultat
+    cacheService.set(cacheKey, result, cacheService.TTL.tags);
+    
+    return result;
   }
 
   async getTagStats(tagName: string) {
     const response = await fetch(`${this.baseUrl}/tags/${tagName}`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
-    
+
     return this.handleResponse<TagStats>(response);
   }
 
   // === FICHIERS ===
 
-  async downloadFile(documentId: string, type: 'url' | 'base64' = 'url') {
-    const response = await fetch(`${this.baseUrl}/files/${documentId}?type=${type}`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
+  async downloadFile(documentId: string) {
+    // Créer une clé de cache
+    const cacheKey = cacheService.generateKey('downloadFile', { documentId });
     
-    return this.handleResponse<FileDownload>(response);
+    // Vérifier le cache
+    const cached = cacheService.get<FileDownload>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
+    // Toujours récupérer en base64 pour éviter les redirections vers MEGA
+    const response = await fetch(
+      `${this.baseUrl}/files/${documentId}`,
+      {
+        method: "GET",
+        headers: this.getHeaders(),
+      }
+    );
+
+    const result = await this.handleResponse<FileDownload>(response);
+    
+    // Mettre en cache le résultat (fichiers ont une durée de vie plus longue)
+    cacheService.set(cacheKey, result, cacheService.TTL.downloadFile);
+    
+    return result;
   }
 
   // === UTILISATEUR ===
 
   async getProfile() {
+    // Créer une clé de cache
+    const cacheKey = cacheService.generateKey('getProfile');
+    
+    // Vérifier le cache
+    const cached = cacheService.get<User>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
     const response = await fetch(`${this.baseUrl}/users/profile`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
+
+    const result = await this.handleResponse<User>(response);
     
-    return this.handleResponse<User>(response);
+    // Mettre en cache le résultat
+    cacheService.set(cacheKey, result, cacheService.TTL.profile);
+    
+    return result;
   }
 
   async updateProfile(data: {
@@ -458,39 +629,44 @@ class ApiService {
     password?: string;
   }) {
     const response = await fetch(`${this.baseUrl}/users/profile`, {
-      method: 'PUT',
+      method: "PUT",
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
+
+    const result = await this.handleResponse<User>(response);
     
-    return this.handleResponse<User>(response);
+    // Invalider le cache du profil
+    cacheService.invalidate('getProfile');
+    
+    return result;
   }
 
   async getPreferences() {
     const response = await fetch(`${this.baseUrl}/users/preferences`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
-    
+
     return this.handleResponse<UserPreferences>(response);
   }
 
   async updatePreferences(preferences: UserPreferences) {
     const response = await fetch(`${this.baseUrl}/users/preferences`, {
-      method: 'PUT',
+      method: "PUT",
       headers: this.getHeaders(),
       body: JSON.stringify(preferences),
     });
-    
+
     return this.handleResponse<UserPreferences>(response);
   }
 
   async deleteAccount() {
     const response = await fetch(`${this.baseUrl}/users/account`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: this.getHeaders(),
     });
-    
+
     return this.handleResponse<{ message: string }>(response);
   }
 
@@ -498,20 +674,23 @@ class ApiService {
 
   async getBackupStatus() {
     const response = await fetch(`${this.baseUrl}/backup/status`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
-    
+
     return this.handleResponse<BackupStatus>(response);
   }
 
-  async createBackup(type: 'full' | 'incremental' | 'documents-only' = 'full', description?: string) {
+  async createBackup(
+    type: "full" | "incremental" | "documents-only" = "full",
+    description?: string
+  ) {
     const response = await fetch(`${this.baseUrl}/backup/create`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ type, description }),
     });
-    
+
     return this.handleResponse<{
       message: string;
       backup: Backup;
@@ -520,11 +699,11 @@ class ApiService {
 
   async restoreBackup(backupId: string, replaceExisting: boolean = false) {
     const response = await fetch(`${this.baseUrl}/backup/restore`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ backupId, replaceExisting }),
     });
-    
+
     return this.handleResponse<{
       message: string;
       result: {
@@ -534,8 +713,41 @@ class ApiService {
       };
     }>(response);
   }
+
+  // === GESTION DU CACHE ===
+
+  /**
+   * Vide tout le cache ou une partie selon le pattern
+   * @param pattern - Pattern optionnel pour filtrer les clés à supprimer
+   */
+  clearCache(pattern?: string): void {
+    cacheService.invalidate(pattern);
+  }
+
+  /**
+   * Obtient des informations sur le cache actuel
+   */
+  getCacheInfo(): {
+    size: number;
+    keys: string[];
+    totalMemoryUsage: number;
+    expiredCount: number;
+  } {
+    return cacheService.getInfo();
+  }
+
+  /**
+   * Démarre le nettoyage automatique du cache
+   */
+  startCacheAutoCleanup(intervalMs?: number): () => void {
+    return cacheService.startAutoCleanup(intervalMs);
+  }
 }
 
 // Instance singleton du service API
 export const apiService = new ApiService();
+
+// Démarrage automatique du nettoyage du cache (toutes les 10 minutes)
+apiService.startCacheAutoCleanup();
+
 export default apiService;

@@ -88,12 +88,12 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
       if (tag) params.tag = tag;
       if (searchQuery) params.search = searchQuery;
       
-      const response = await apiService.getDocuments(params);
-      
+      const response = await apiService.getDocuments(params);      
       setDocuments(response.documents);
       setTotal(response.total);
       setCurrentPage(response.page);
     } catch (err) {
+      console.error('Erreur lors du chargement des documents:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des documents');
       setDocuments([]);
     } finally {
@@ -120,6 +120,7 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
       
       return newDocument;
     } catch (err) {
+      console.error('Erreur lors de la création du document:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de la création du document');
       return null;
     } finally {
@@ -146,6 +147,7 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
       
       return newDocument;
     } catch (err) {
+      console.error('Erreur lors de l\'upload du document:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload du document');
       return null;
     } finally {
@@ -161,23 +163,42 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
     tags?: string[];
     isFavorite?: boolean;
   }): Promise<Document | null> => {
-    setLoading(true);
     setError(null);
-    
+
+    // Mettre d'abord à jour le document dans la liste (mise à jour optimiste)
+    let originalDocument: Document | null = null;
+    setDocuments((prev) => {
+      return prev.map(doc => {
+        if (doc.id === id) {
+          originalDocument = doc; // Sauvegarder l'original pour rollback si nécessaire
+          return { ...doc, ...data };
+        }
+        return doc;
+      });
+    });
+
+    // Faire le call pour mettre à jour le document en bd
     try {
       const updatedDocument = await apiService.updateDocument(id, data);
       
-      // Mettre à jour le document dans la liste
-      setDocuments(prev => 
-        prev.map(doc => doc.id === id ? updatedDocument : doc)
-      );
+      // Mettre à jour avec les données du serveur
+      setDocuments((prev) => {
+        return prev.map(doc => doc.id === id ? updatedDocument : doc);
+      });
       
       return updatedDocument;
     } catch (err) {
+      console.error('Erreur lors de la mise à jour du document:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de la mise à jour du document');
+      
+      // Rollback en cas d'erreur
+      if (originalDocument) {
+        setDocuments((prev) => {
+          return prev.map(doc => doc.id === id ? originalDocument! : doc);
+        });
+      }
+      
       return null;
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -194,6 +215,7 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
       
       return true;
     } catch (err) {
+      console.error('Erreur lors de la suppression du document:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de la suppression du document');
       return false;
     } finally {
@@ -215,6 +237,7 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
       setDocuments(response.results);
       setTotal(response.total);
     } catch (err) {
+      console.error('Erreur lors de la recherche des documents:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de la recherche');
       setDocuments([]);
     } finally {

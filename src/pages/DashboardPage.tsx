@@ -6,17 +6,22 @@ import { DocumentCard } from '../components/DocumentCard';
 import { UploadArea } from '../components/UploadArea';
 import { ViewControls } from '../components/ViewControls';
 import { Stats } from '../components/Stats';
+import { QuickStats } from '../components/QuickStats';
+import { DocumentPreviewModal } from '../components/DocumentPreviewModal';
 import { categories } from '../data/mockData';
-import { ViewMode } from '../types';
 import { useDocuments } from '../hooks/useDocuments';
 import { useToast } from '../hooks/useToast';
+import { useViewMode } from '../hooks/useViewMode';
+import apiService from '../services/apiService';
 
 export const DashboardPage = () => {
+  // Hook pour gérer le mode de vue avec localStorage
+  const { viewMode, setViewMode } = useViewMode();
+  
   // État de l'application
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [confirmDelete, setConfirmDelete] = useState<{
     show: boolean;
     documentId: string;
@@ -25,6 +30,18 @@ export const DashboardPage = () => {
     show: false,
     documentId: '',
     documentName: '',
+  });
+
+  const [previewModal, setPreviewModal] = useState<{
+    show: boolean;
+    document: { id: string; name: string; type: string; size: number } | null;
+    fileData: { dataUrl: string; type: string } | null;
+    loading: boolean;
+  }>({
+    show: false,
+    document: null,
+    fileData: null,
+    loading: false,
   });
 
   // Hook des documents
@@ -55,10 +72,15 @@ export const DashboardPage = () => {
 
   // Documents filtrés
   const filteredDocuments = useMemo(() => {
+    // Protection contre undefined/null
+    if (!Array.isArray(documents)) {
+      return [];
+    }
+    
     return documents.filter((doc) => {
       const matchesSearch = searchTerm === '' || 
         doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+        (doc.tags && doc.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
       const matchesCategory = selectedCategory === '' || doc.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
@@ -66,11 +88,14 @@ export const DashboardPage = () => {
 
   // Statistiques
   const stats = useMemo(() => {
+    // Protection contre undefined/null
+    const safeDocuments = Array.isArray(documents) ? documents : [];
+    
     return {
-      totalDocuments: total || documents.length,
-      totalSize: documents.reduce((sum, doc) => sum + doc.size, 0),
-      favoriteCount: documents.filter(doc => doc.favorite).length,
-      sharedCount: documents.filter(doc => doc.shared).length,
+      totalDocuments: total || safeDocuments.length,
+      totalSize: safeDocuments.reduce((sum, doc) => sum + (doc.size || 0), 0),
+      favoriteCount: safeDocuments.filter(doc => doc.favorite).length,
+      sharedCount: safeDocuments.filter(doc => doc.shared).length,
     };
   }, [documents, total]);
 
@@ -84,6 +109,9 @@ export const DashboardPage = () => {
 
   // Handlers des documents
   const handleToggleFavorite = async (id: string) => {
+    // Protection contre undefined/null
+    if (!Array.isArray(documents)) return;
+    
     const document = documents.find(doc => doc.id === id);
     if (!document) return;
 
@@ -100,6 +128,9 @@ export const DashboardPage = () => {
   };
 
   const handleDeleteDocument = (id: string) => {
+    // Protection contre undefined/null
+    if (!Array.isArray(documents)) return;
+    
     const document = documents.find(doc => doc.id === id);
     if (!document) return;
 
@@ -107,6 +138,62 @@ export const DashboardPage = () => {
       show: true,
       documentId: id,
       documentName: document.name,
+    });
+  };
+
+  const handleViewDocument = async (id: string) => {
+    try {
+      // Protection contre undefined/null
+      if (!Array.isArray(documents)) return;
+      
+      const document = documents.find(doc => doc.id === id);
+      if (!document) return;
+
+      // Ouvrir le modal avec le document et commencer le chargement
+      setPreviewModal({
+        show: true,
+        document: {
+          id: document.id,
+          name: document.name,
+          type: document.type,
+          size: document.size
+        },
+        fileData: null,
+        loading: true,
+      });
+
+      // Utiliser notre API backend pour obtenir le contenu du document
+      const fileData = await apiService.downloadFile(id);
+
+      console.log(fileData);
+      
+      if (fileData.dataUrl) {
+        // Mettre à jour le modal avec les données du fichier
+        setPreviewModal(prev => ({
+          ...prev,
+          fileData: {
+            dataUrl: fileData.dataUrl!,
+            type: fileData.type || 'unknown'
+          },
+          loading: false,
+        }));
+      } else {
+        setPreviewModal(prev => ({ ...prev, loading: false }));
+        showToast('Impossible d\'obtenir le contenu du document', 'error');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture du document:', error);
+      setPreviewModal(prev => ({ ...prev, loading: false }));
+      showToast('Erreur lors de l\'ouverture du document', 'error');
+    }
+  };
+
+  const closePreviewModal = () => {
+    setPreviewModal({
+      show: false,
+      document: null,
+      fileData: null,
+      loading: false,
     });
   };
 
@@ -158,6 +245,9 @@ export const DashboardPage = () => {
 
   return (
     <>
+      {/* Dashboard avec statistiques et préférences */}
+      <QuickStats className="mb-8" />
+
       {/* Stats */}
       <Stats {...stats} />
 
@@ -211,6 +301,7 @@ export const DashboardPage = () => {
                   document={document}
                   onToggleFavorite={handleToggleFavorite}
                   onDelete={handleDeleteDocument}
+                  onView={handleViewDocument}
                   viewMode={viewMode}
                 />
               ))}
@@ -254,6 +345,7 @@ export const DashboardPage = () => {
             <h3 className="font-bold text-lg">Confirmer la suppression</h3>
             <p className="py-4">
               Êtes-vous sûr de vouloir supprimer le document <strong>{confirmDelete.documentName}</strong> ?
+              <br />
               Cette action est irréversible.
             </p>
             <div className="modal-action">
@@ -275,6 +367,14 @@ export const DashboardPage = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de prévisualisation */}
+      <DocumentPreviewModal
+        isOpen={previewModal.show}
+        onClose={closePreviewModal}
+        document={previewModal.document}
+        fileData={previewModal.fileData}
+      />
     </>
   );
 };

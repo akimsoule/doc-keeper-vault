@@ -1,5 +1,6 @@
 import React from "react";
 import { useTheme } from "../hooks/useTheme";
+import { useUserPreferences } from "../hooks/useUserPreferences";
 
 const themes = [
   { name: "light", label: "Clair" },
@@ -35,6 +36,13 @@ const themes = [
 
 export const ThemeSelector: React.FC = () => {
   const { theme, setSpecificTheme } = useTheme();
+  const { updatePreference } = useUserPreferences();
+
+  const handleThemeChange = (newTheme: string) => {
+    setSpecificTheme(newTheme);
+    // Sauvegarder dans les préférences utilisateur
+    updatePreference('theme', newTheme);
+  };
 
   return (
     <div className="dropdown dropdown-end">
@@ -48,7 +56,7 @@ export const ThemeSelector: React.FC = () => {
         {themes.map((themeOption) => (
           <li key={themeOption.name}>
             <a
-              onClick={() => setSpecificTheme(themeOption.name)}
+              onClick={() => handleThemeChange(themeOption.name)}
               className={theme === themeOption.name ? "active" : ""}
             >
               {themeOption.label}

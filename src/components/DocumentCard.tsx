@@ -9,15 +9,16 @@ import {
   Share2,
   Star,
   Trash2,
+  Eye,
   MoreHorizontal
 } from 'lucide-react';
 import { Document } from '../types';
-import { ConfirmModal } from './ConfirmModal';
 
 interface DocumentCardProps {
   document: Document;
   onToggleFavorite: (id: string) => void;
   onDelete: (id: string) => void;
+  onView: (id: string) => void;
   viewMode: 'grid' | 'list';
 }
 
@@ -48,18 +49,18 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   document,
   onToggleFavorite,
   onDelete,
+  onView,
   viewMode,
 }) => {
   const [showActions, setShowActions] = React.useState(false);
-  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const FileIcon = getFileIcon(document.type);
 
   const handleDeleteClick = () => {
-    setShowDeleteModal(true);
+    onDelete(document.id);
   };
 
-  const handleConfirmDelete = () => {
-    onDelete(document.id);
+  const handleViewClick = () => {
+    onView(document.id);
   };
 
   if (viewMode === 'list') {
@@ -100,24 +101,39 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             </div>
             <div className={`flex items-center gap-1 sm:gap-2 transition-opacity duration-200 flex-shrink-0 ${showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'}`}>
               <button
+                onClick={handleViewClick}
+                className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-primary hover:bg-primary/20"
+                title="Voir le document"
+              >
+                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+              <button
                 onClick={() => onToggleFavorite(document.id)}
                 className={`btn btn-ghost btn-sm btn-square ${
                   document.favorite
                     ? 'text-warning hover:bg-warning/20'
                     : 'text-base-content/40 hover:text-warning hover:bg-warning/20'
                 }`}
+                title={document.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
               >
                 <Star className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${document.favorite ? 'fill-current' : ''}`} />
               </button>
-              <button className="hidden sm:flex btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-info hover:bg-info/20">
+              <button 
+                className="hidden sm:flex btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-info hover:bg-info/20"
+                title="Télécharger"
+              >
                 <Download className="w-4 h-4" />
               </button>
-              <button className="hidden sm:flex btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-success hover:bg-success/20">
+              <button 
+                className="hidden sm:flex btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-success hover:bg-success/20"
+                title="Partager"
+              >
                 <Share2 className="w-4 h-4" />
               </button>
               <button
                 onClick={handleDeleteClick}
                 className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-error hover:bg-error/20"
+                title="Supprimer"
               >
                 <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
@@ -181,15 +197,40 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           
           <div className={`card-actions justify-between transition-opacity duration-200 ${showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'}`}>
             <div className="flex items-center gap-1 sm:gap-2">
-              <button className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-info hover:bg-info/20">
+              <button 
+                onClick={handleViewClick}
+                className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-primary hover:bg-primary/20"
+                title="Voir le document"
+              >
+                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+              <button 
+                onClick={() => onToggleFavorite(document.id)}
+                className={`btn btn-ghost btn-sm btn-square ${
+                  document.favorite
+                    ? 'text-warning hover:bg-warning/20'
+                    : 'text-base-content/40 hover:text-warning hover:bg-warning/20'
+                }`}
+                title={document.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              >
+                <Star className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${document.favorite ? 'fill-current' : ''}`} />
+              </button>
+              <button 
+                className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-info hover:bg-info/20"
+                title="Télécharger"
+              >
                 <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-success hover:bg-success/20">
+              <button 
+                className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-success hover:bg-success/20"
+                title="Partager"
+              >
                 <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               <button
                 onClick={handleDeleteClick}
                 className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-error hover:bg-error/20"
+                title="Supprimer"
               >
                 <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
@@ -198,17 +239,6 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           </div>
         </div>
       </div>
-      
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={handleConfirmDelete}
-        title="Supprimer le document"
-        message={`Êtes-vous sûr de vouloir supprimer "${document.name}" ? Cette action est irréversible.`}
-        confirmText="Supprimer"
-        cancelText="Annuler"
-        type="danger"
-      />
     </div>
   );
 };

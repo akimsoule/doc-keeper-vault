@@ -238,6 +238,33 @@ export class DocumentService {
     });
   }
 
+  async getDocumentCount(filters?: {
+    type?: string;
+    category?: string;
+    ownerId?: string;
+    tags?: string[];
+    search?: string;
+  }) {
+    const where: Record<string, unknown> = {};
+
+    if (filters?.type) where.type = filters.type;
+    if (filters?.category) where.category = filters.category;
+    if (filters?.ownerId) where.ownerId = filters.ownerId;
+    if (filters?.tags && filters.tags.length > 0) {
+      where.tags = { hasSome: filters.tags };
+    }
+    if (filters?.search) {
+      where.OR = [
+        { name: { contains: filters.search, mode: "insensitive" } },
+        { description: { contains: filters.search, mode: "insensitive" } },
+      ];
+    }
+
+    return prisma.document.count({
+      where,
+    });
+  }
+
   async getUserDocuments(ownerId: string, skip = 0, take = 20) {
     return prisma.document.findMany({
       where: { ownerId },
