@@ -282,7 +282,8 @@ export class TagService {
     const documents = await prisma.document.findMany({
       where: {
         tags: {
-          contains: oldTag
+          contains: oldTag,
+          mode: 'insensitive' as const
         }
       },
       select: { id: true, tags: true, name: true }

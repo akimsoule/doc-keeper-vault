@@ -94,9 +94,9 @@ export class SearchService {
     // Recherche textuelle dans le nom et la description
     if (query) {
       where.OR = [
-        { name: { contains: query } },
-        { description: { contains: query } },
-        { tags: { contains: query } },
+        { name: { contains: query, mode: 'insensitive' as const } },
+        { description: { contains: query, mode: 'insensitive' as const } },
+        { tags: { contains: query, mode: 'insensitive' as const } },
       ];
     }
 
@@ -122,13 +122,13 @@ export class SearchService {
 
     // Filtre par email du propriétaire
     if (ownerEmail) {
-      where.owner = { email: ownerEmail };
+      where.owner = { email: { equals: ownerEmail, mode: 'insensitive' as const } };
     }
 
     // Filtre par tags
     if (tags && tags.length > 0) {
       const tagConditions = tags.map(tag => ({
-        tags: { contains: tag }
+        tags: { contains: tag, mode: 'insensitive' as const }
       }));
       where.AND = tagConditions;
     }
@@ -190,6 +190,7 @@ export class SearchService {
       where: {
         name: {
           contains: query,
+          mode: 'insensitive' as const,
         },
       },
       include: {
@@ -245,7 +246,7 @@ export class SearchService {
           { category: document.category },
           { type: document.type },
           ...(tags.length > 0 ? tags.map(tag => ({
-            tags: { contains: tag }
+            tags: { contains: tag, mode: 'insensitive' as const }
           })) : []),
         ],
       },
@@ -278,6 +279,7 @@ export class SearchService {
       where: {
         name: {
           contains: query,
+          mode: 'insensitive' as const,
         },
       },
       select: { name: true },
@@ -299,6 +301,7 @@ export class SearchService {
       where: {
         tags: {
           contains: query,
+          mode: 'insensitive' as const,
         },
       },
       take: 20,
@@ -329,6 +332,7 @@ export class SearchService {
         where: {
           name: {
             contains: query,
+            mode: 'insensitive' as const,
           },
         },
         select: { name: true },
@@ -350,6 +354,7 @@ export class SearchService {
         where: {
           category: {
             contains: query,
+            mode: 'insensitive' as const,
           },
         },
         _count: { category: true },
@@ -375,6 +380,7 @@ export class SearchService {
         where: {
           tags: {
             contains: query,
+            mode: 'insensitive' as const,
           },
         },
         select: { tags: true },
