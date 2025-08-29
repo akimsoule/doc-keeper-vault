@@ -206,7 +206,7 @@ export class DocumentService {
       search?: string;
     }
   ) {
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     if (filters?.type) where.type = filters.type;
     if (filters?.category) where.category = filters.category;
@@ -488,9 +488,37 @@ export class DocumentService {
 
     const allDocuments = await prisma.document.findMany({ select: { id: true, hash: true, name: true } });
     console.log(`📄 ${allDocuments.length} documents trouvés dans la base de données.`);
-
-    const newDocuments = [];
-    const updatedDocuments = [];
+    
+    const newDocuments: Array<{
+      id: string;
+      name: string;
+      type: string;
+      category: string;
+      size: number;
+      description?: string | null;
+      tags: string;
+      fileId: string;
+      hash: string;
+      ownerId: string;
+      isFavorite: boolean;
+      createdAt: Date;
+      modifiedAt: Date;
+    }> = [];
+    const updatedDocuments: Array<{
+      id: string;
+      name: string;
+      type: string;
+      category: string;
+      size: number;
+      description?: string | null;
+      tags: string;
+      fileId: string;
+      hash: string;
+      ownerId: string;
+      isFavorite: boolean;
+      createdAt: Date;
+      modifiedAt: Date;
+    }> = [];
 
     for (const megaFile of megaFiles) {
       const hash = crypto.createHash('sha256').update(megaFile.buffer).digest('hex');
@@ -549,7 +577,7 @@ export class DocumentService {
           details: `Nouveau document synchronisé depuis MEGA: ${document.name}`,
         });
 
-        newDocuments.push(document as any);
+        newDocuments.push(document);
       }
     }
 

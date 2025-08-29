@@ -12,9 +12,15 @@ export type LogAction =
   | 'DOCUMENT_DOWNLOAD'
   | 'DOCUMENT_FAVORITE'
   | 'DOCUMENT_UNFAVORITE'
-  | 'DOCUMENT_SYNC';
+  | 'DOCUMENT_SYNC'
+  | 'TAG_CREATE'
+  | 'TAG_UPDATE'
+  | 'TAG_DELETE'
+  | 'SEARCH_PERFORM'
+  | 'SYSTEM_BACKUP'
+  | 'SYSTEM_RESTORE';
 
-export type LogEntity = 'USER' | 'DOCUMENT';
+export type LogEntity = 'USER' | 'DOCUMENT' | 'TAG' | 'SYSTEM';
 
 export interface LogData {
   action: LogAction;
