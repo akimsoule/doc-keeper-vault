@@ -6,11 +6,14 @@ import {
   Settings,
   Activity,
   Calendar,
-  BarChart3
+  BarChart3,
+  Cloud,
+  Loader2
 } from 'lucide-react';
 import { useStats } from '../hooks/useStats';
 import { useNotifications } from '../hooks/useNotifications';
 import { useUserPreferences } from '../hooks/useUserPreferences';
+import { useMegaSync } from '../hooks/useMegaSync';
 import { UserPreferencesModal } from './UserPreferencesModal';
 import { NotificationCenter } from './NotificationCenter';
 
@@ -26,6 +29,17 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
     refreshInterval: preferences.autoRefresh ? preferences.refreshInterval * 1000 : undefined,
   });
   const { notifications, addNotification } = useNotifications();
+  const { isSyncing, syncMegaFiles } = useMegaSync();
+
+  // Fonction de synchronisation MEGA
+  const handleSyncMega = async () => {
+    const result = await syncMegaFiles();
+    
+    if (result) {
+      // Recharger les stats après la synchronisation réussie
+      await loadStats();
+    }
+  };
 
   // Notifier les nouvelles activités
   useEffect(() => {
@@ -101,6 +115,20 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Tableau de bord</h2>
           <div className="flex gap-2">
+            {/* Synchronisation MEGA */}
+            <button 
+              onClick={handleSyncMega}
+              disabled={isSyncing}
+              className="btn btn-ghost btn-circle btn-sm"
+              title={isSyncing ? "Synchronisation en cours..." : "Synchroniser avec MEGA"}
+            >
+              {isSyncing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Cloud className="w-4 h-4" />
+              )}
+            </button>
+            
             {/* Notifications */}
             <NotificationCenter />
             

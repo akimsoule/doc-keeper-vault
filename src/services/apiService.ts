@@ -424,6 +424,40 @@ class ApiService {
     return result;
   }
 
+  async syncMegaFiles(folderId?: string) {
+    const response = await fetch(`${this.baseUrl}/documents/sync-mega`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ folderId }),
+    });
+
+    const result = await this.handleResponse<{
+      message: string;
+      syncedCount: number;
+      updatedCount: number;
+      newDocuments: Array<{
+        id: string;
+        name: string;
+        category: string;
+        size: number;
+      }>;
+      updatedDocuments: Array<{
+        id: string;
+        name: string;
+        category: string;
+        size: number;
+      }>;
+    }>(response);
+    
+    // Invalider tout le cache des documents car ils ont potentiellement changé
+    cacheService.invalidate('getDocuments');
+    cacheService.invalidate('getStats');
+    cacheService.invalidate('getUserStats');
+    cacheService.invalidate('getTags');
+    
+    return result;
+  }
+
   // === RECHERCHE ===
 
   async search(

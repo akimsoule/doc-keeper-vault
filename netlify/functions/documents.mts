@@ -130,7 +130,11 @@ const documentsHandler = handleErrors(
     }
 
     const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/').filter(segment => segment !== '');
     const documentId = extractResourceId(url, "documents");
+    
+    // Vérifier si c'est une action spéciale (ex: synchronisation)
+    const action = pathSegments[pathSegments.length - 1];
 
     // Pour GET, l'authentification est optionnelle (pour les documents publics)
     // Pour les autres méthodes, elle est requise
@@ -155,6 +159,10 @@ const documentsHandler = handleErrors(
 
       switch (request.method) {
         case "POST":
+          // Vérifier si c'est une action de synchronisation
+          if (action === "sync-mega") {
+            return await handleSyncMegaFiles(request, user);
+          }
           return await handleCreateDocument(request, user);
 
         case "PUT":
@@ -341,6 +349,41 @@ async function handleDeleteDocument(documentId: string, user: any) {
     console.error("Erreur lors de la suppression du document:", error);
     return createErrorResponse(
       "Erreur lors de la suppression du document",
+      500
+    );
+  }
+}
+
+async function handleSyncMegaFiles(request: Request, user: any) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const folderId = body.folderId || undefined; // Optionnel: ID du dossier MEGA à synchroniser
+    
+    console.log(`🔄 Démarrage de la synchronisation MEGA par l'utilisateur ${user.userId}${folderId ? ` (dossier: ${folderId})` : ''}`);
+    
+    const result = await documentService.synchronizeMegaFiles(user.userId, folderId);
+    
+    return createSuccessResponse({
+      message: "Synchronisation MEGA terminée avec succès",
+      syncedCount: result.syncedCount,
+      updatedCount: result.updatedCount,
+      newDocuments: result.newDocuments.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        category: doc.category,
+        size: doc.size
+      })),
+      updatedDocuments: result.updatedDocuments.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        category: doc.category,
+        size: doc.size
+      }))
+    });
+  } catch (error) {
+    console.error("Erreur lors de la synchronisation MEGA:", error);
+    return createErrorResponse(
+      error instanceof Error ? error.message : "Erreur lors de la synchronisation MEGA",
       500
     );
   }

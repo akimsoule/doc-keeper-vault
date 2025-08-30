@@ -10,11 +10,14 @@ import {
   HardDrive,
   Activity,
   Bell,
-  Settings
+  Settings,
+  Cloud,
+  Loader2
 } from 'lucide-react';
 import { useStats } from '../hooks/useStats';
 import { useNotifications } from '../hooks/useNotifications';
 import { useUserPreferences } from '../hooks/useUserPreferences';
+import { useMegaSync } from '../hooks/useMegaSync';
 import { UserPreferencesModal } from '../components/UserPreferencesModal';
 import { NotificationCenter } from '../components/NotificationCenter';
 
@@ -65,6 +68,12 @@ const StatsCard: React.FC<StatsCardProps> = ({
 
 export const StatsPage: React.FC = () => {
   const [showPreferences, setShowPreferences] = useState(false);
+  const timeRangeOptions = [
+    { value: '7d', label: '7 derniers jours' },
+    { value: '30d', label: '30 derniers jours' },
+    { value: '90d', label: '3 derniers mois' },
+    { value: '1y', label: 'Dernière année' },
+  ];
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const { preferences } = useUserPreferences();
   const { stats, loading, error, loadStats, refreshStats } = useStats({
@@ -72,6 +81,17 @@ export const StatsPage: React.FC = () => {
     refreshInterval: preferences.autoRefresh ? preferences.refreshInterval * 1000 : undefined,
   });
   const { notifications } = useNotifications();
+  const { isSyncing, syncMegaFiles } = useMegaSync();
+
+  // Fonction de synchronisation MEGA
+  const handleSyncMega = async () => {
+    const result = await syncMegaFiles();
+    
+    if (result) {
+      // Rafraîchir les statistiques après la synchronisation réussie
+      await refreshStats();
+    }
+  };
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -94,13 +114,6 @@ export const StatsPage: React.FC = () => {
       .sort(([, a], [, b]) => b - a)
       .slice(0, 6);
   };
-
-  const timeRangeOptions = [
-    { value: '7d', label: '7 jours' },
-    { value: '30d', label: '30 jours' },
-    { value: '90d', label: '3 mois' },
-    { value: '1y', label: '1 an' }
-  ];
 
   if (loading) {
     return (
@@ -381,6 +394,18 @@ export const StatsPage: React.FC = () => {
             <div className="card-body">
               <h3 className="card-title text-info">Actions</h3>
               <div className="space-y-2">
+                <button 
+                  onClick={handleSyncMega}
+                  disabled={isSyncing}
+                  className="btn btn-outline btn-sm w-full gap-2 hover:border-primary hover:text-primary"
+                >
+                  {isSyncing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Cloud className="w-4 h-4" />
+                  )}
+                  {isSyncing ? 'Synchronisation...' : 'Synchroniser MEGA'}
+                </button>
                 <button className="btn btn-outline btn-sm w-full gap-2">
                   <Download className="w-4 h-4" />
                   Exporter les stats

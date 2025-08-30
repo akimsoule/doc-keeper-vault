@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Files, BarChart3, HelpCircle } from 'lucide-react';
+import { Files, BarChart3, HelpCircle, Cloud, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryFilter } from '../components/CategoryFilter';
@@ -15,6 +15,7 @@ import { useToast } from '../hooks/useToast';
 import { useViewMode } from '../hooks/useViewMode';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useMegaSync } from '../hooks/useMegaSync';
 import { Category } from '../types';
 import apiService from '../services/apiService';
 
@@ -24,6 +25,9 @@ export const DashboardPage = () => {
   
   // Hook pour gérer les erreurs
   const { handleError } = useErrorHandler();
+  
+  // Hook pour la synchronisation MEGA
+  const { isSyncing, syncMegaFiles } = useMegaSync();
   
   // État de l'application
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,6 +105,16 @@ export const DashboardPage = () => {
     return icons[category] || '📁';
   }, []);
 
+  // Fonction de synchronisation MEGA avec useCallback
+  const handleSyncMega = useCallback(async () => {
+    const result = await syncMegaFiles();
+    
+    if (result) {
+      // Recharger les documents après la synchronisation réussie
+      await loadDocuments();
+    }
+  }, [syncMegaFiles, loadDocuments]);
+
   // Documents filtrés et catégories dynamiques
   const { filteredDocuments, categories, totalDocuments } = useMemo(() => {
     // Protection contre undefined/null
@@ -151,6 +165,12 @@ export const DashboardPage = () => {
     'ctrl+f': () => setShowFilters(!showFilters),
     'ctrl+g': () => setViewMode(viewMode === 'grid' ? 'list' : 'grid'),
     'ctrl+r': () => loadDocuments(),
+    'ctrl+shift+s': () => {
+      // Raccourci pour synchroniser avec MEGA
+      if (!isSyncing) {
+        handleSyncMega();
+      }
+    },
     'escape': () => {
       setSearchTerm('');
       setSelectedCategory('');
@@ -159,7 +179,7 @@ export const DashboardPage = () => {
     },
     'ctrl+?': () => setShowKeyboardHelp(true),
     'f1': () => setShowKeyboardHelp(true),
-  }), [showFilters, setViewMode, viewMode, loadDocuments]);
+  }), [showFilters, setViewMode, viewMode, loadDocuments, isSyncing, handleSyncMega]);
 
   // Hook pour les raccourcis clavier
   useKeyboardShortcuts(keyboardShortcuts);
@@ -325,6 +345,22 @@ export const DashboardPage = () => {
           >
             <HelpCircle className="w-4 h-4" />
           </button>
+          <button
+            onClick={handleSyncMega}
+            disabled={isSyncing}
+            className="btn btn-outline btn-sm gap-2 hover:border-primary hover:text-primary"
+            title="Synchroniser les fichiers MEGA"
+            aria-label="Synchroniser avec MEGA"
+          >
+            {isSyncing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Cloud className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline">
+              {isSyncing ? 'Synchronisation...' : 'Sync MEGA'}
+            </span>
+          </button>
           <Link
             to="/dashboard/stats"
             className="btn btn-outline btn-primary gap-2"
@@ -484,6 +520,7 @@ export const DashboardPage = () => {
           { key: 'Ctrl + F', description: 'Afficher/masquer les filtres' },
           { key: 'Ctrl + G', description: 'Basculer vue grille/liste' },
           { key: 'Ctrl + R', description: 'Actualiser les documents' },
+          { key: 'Ctrl + Shift + S', description: 'Synchroniser avec MEGA' },
           { key: 'Ctrl + ?', description: 'Afficher cette aide' },
           { key: 'F1', description: 'Afficher cette aide' },
           { key: 'Échap', description: 'Réinitialiser filtres et fermer modals' },
