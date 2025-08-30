@@ -1,14 +1,14 @@
 import React from 'react';
 import { Monitor, Moon, Sun, Grid, List, RotateCcw, Settings } from 'lucide-react';
 import { useUserPreferences } from '../hooks/useUserPreferences';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme, Theme } from '../hooks/useTheme';
 
 export const UserPreferencesSettings: React.FC = () => {
   const { preferences, updatePreference, resetPreferences } = useUserPreferences();
-  const { theme, setSpecificTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const handleThemeChange = (newTheme: string) => {
-    setSpecificTheme(newTheme);
+    setTheme(newTheme as Theme);
     updatePreference('theme', newTheme);
   };
 
