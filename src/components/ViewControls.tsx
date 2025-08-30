@@ -22,7 +22,7 @@ export const ViewControls: React.FC<ViewControlsProps> = ({
         <div className="btn-group">
           <button
             onClick={() => setViewMode('grid')}
-            className={`btn btn-sm ${
+            className={`btn btn-sm mr-2 ${
               viewMode === 'grid'
                 ? 'btn-active btn-primary'
                 : 'btn-outline'

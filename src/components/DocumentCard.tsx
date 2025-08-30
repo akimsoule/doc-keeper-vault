@@ -79,7 +79,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   if (viewMode === 'list') {
     return (
       <article 
-        className="group card card-compact bg-base-100/80 backdrop-blur-sm border border-base-300 shadow-sm hover:shadow-lg transition-all duration-200"
+        className="group document-card-enhanced card card-compact shadow-sm hover:shadow-lg transition-all duration-200"
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
         aria-label={`Document ${document.name}, ${formatFileSize(document.size)}, ${document.category}`}
@@ -182,7 +182,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 
   return (
     <article 
-      className="group card bg-base-100/80 backdrop-blur-sm border border-base-300 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+      className="group document-card-enhanced card shadow-sm hover:shadow-xl transition-all duration-300"
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       aria-label={`Document ${document.name}, ${formatFileSize(document.size)}, ${document.category}`}

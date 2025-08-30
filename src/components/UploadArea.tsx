@@ -42,10 +42,8 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onFileUpload }) => {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative border-2 border-dashed rounded-lg sm:rounded-xl p-4 sm:p-8 text-center transition-all duration-200 ${
-            isDragging
-              ? 'border-primary bg-primary/10 scale-105'
-              : 'border-base-300 hover:border-primary/60 hover:bg-primary/5'
+          className={`upload-area-modern relative p-4 sm:p-8 text-center transition-all duration-200 ${
+            isDragging ? 'drag-active' : ''
           }`}
         >
           <div className="flex flex-col items-center gap-3 sm:gap-4">
@@ -68,13 +66,13 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onFileUpload }) => {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="btn btn-primary w-full sm:w-auto gap-2"
+                  className="btn-primary-modern btn w-full sm:w-auto gap-2 focus-modern"
                 >
                   <Plus className="w-4 h-4" />
                   Ajouter des fichiers
                 </button>
                 
-                <button className="btn btn-outline w-full sm:w-auto gap-2">
+                <button className="btn-secondary-modern btn w-full sm:w-auto gap-2 focus-modern">
                   <FolderPlus className="w-4 h-4" />
                   Créer un dossier
                 </button>
@@ -97,7 +95,7 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onFileUpload }) => {
         <div className="flex justify-end">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="btn btn-primary gap-2"
+            className="btn-primary-modern btn gap-2 focus-modern"
           >
             <Plus className="w-4 h-4" />
             Ajouter des fichiers
@@ -116,7 +114,7 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onFileUpload }) => {
       <div className="block md:hidden">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="btn btn-primary btn-circle fixed bottom-6 right-6 z-40 shadow-lg hover:shadow-xl transition-all duration-200 w-14 h-14"
+          className="btn-primary-modern btn btn-circle fixed bottom-6 right-6 z-40 w-14 h-14 focus-modern animate-pulse-gentle"
           title="Ajouter des fichiers"
         >
           <Plus className="w-6 h-6" />

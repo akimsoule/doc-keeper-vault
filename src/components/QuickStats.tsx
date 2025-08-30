@@ -121,7 +121,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
             <button 
               onClick={handleSyncMega}
               disabled={isSyncing}
-              className="btn btn-ghost btn-circle btn-sm"
+              className="btn-modern btn btn-ghost btn-circle btn-sm focus-modern"
               title={isSyncing ? "Synchronisation en cours..." : "Synchroniser avec MEGA"}
             >
               {isSyncing ? (
@@ -144,7 +144,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
                   window.dispatchEvent(event);
                 }, 100);
               }}
-              className="btn btn-ghost btn-circle"
+              className="btn-modern btn btn-ghost btn-circle focus-modern"
               title="Préférences"
             >
               <Settings className="w-5 h-5" />
@@ -154,7 +154,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
 
         {/* Statistiques principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="card bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+          <div className="stats-card-modern stats-primary card">
             <div className="card-body">
               <div className="flex items-center justify-between">
                 <div>
@@ -166,7 +166,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
             </div>
           </div>
 
-          <div className="card bg-gradient-to-r from-secondary/10 to-secondary/5 border border-secondary/20">
+          <div className="stats-card-modern stats-secondary card">
             <div className="card-body">
               <div className="flex items-center justify-between">
                 <div>
@@ -178,7 +178,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
             </div>
           </div>
 
-          <div className="card bg-gradient-to-r from-accent/10 to-accent/5 border border-accent/20">
+          <div className="stats-card-modern stats-accent card">
             <div className="card-body">
               <div className="flex items-center justify-between">
                 <div>
@@ -192,7 +192,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
             </div>
           </div>
 
-          <div className="card bg-gradient-to-r from-info/10 to-info/5 border border-info/20">
+          <div className="stats-card-modern stats-info card">
             <div className="card-body">
               <div className="flex items-center justify-between">
                 <div>
@@ -208,7 +208,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
         {/* Graphiques et détails */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top catégories */}
-          <div className="card bg-base-200">
+          <div className="stats-card-modern card">
             <div className="card-body">
               <h3 className="card-title flex items-center gap-2">
                 <BarChart3 className="w-5 h-5" />
