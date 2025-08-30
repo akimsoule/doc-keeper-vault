@@ -51,11 +51,13 @@ export const DashboardPage = () => {
   const [previewModal, setPreviewModal] = useState<{
     show: boolean;
     document: { id: string; name: string; type: string; size: number } | null;
+    fullDocument: DocumentType | null;
     fileData: { dataUrl: string; type: string } | null;
     loading: boolean;
   }>({
     show: false,
     document: null,
+    fullDocument: null,
     fileData: null,
     loading: false,
   });
@@ -283,70 +285,78 @@ export const DashboardPage = () => {
     }
   };
 
-  const handleDeleteDocument = (id: string) => {
-    // Protection contre undefined/null
-    if (!Array.isArray(documents)) return;
-    
-    const document = documents.find(doc => doc.id === id);
-    if (!document) return;
-
-    setConfirmDelete({
-      show: true,
-      documentId: id,
-      documentName: document.name,
-    });
-  };
-
-  const handleArchiveDocument = async (id: string) => {
-    // Protection contre undefined/null
-    if (!Array.isArray(documents)) return;
-    
-    const document = documents.find(doc => doc.id === id);
-    if (!document) return;
-
-    const success = await archiveDocument(id);
-
-    if (success) {
-      showToast(
-        `Document "${document.name}" archivé avec succès`,
-        'success'
-      );
-      // Recharger le nombre de documents archivés
-      loadArchivedCount();
-    }
-  };
-
-  const handleUnarchiveDocument = async (id: string) => {
-    // Protection contre undefined/null
-    if (!Array.isArray(documents)) return;
-    
-    const document = documents.find(doc => doc.id === id);
-    if (!document) return;
-
-    const success = await unarchiveDocument(id);
-
-    if (success) {
-      showToast(
-        `Document "${document.name}" désarchivé avec succès`,
-        'success'
-      );
-      // Recharger le nombre de documents archivés
-      loadArchivedCount();
-    }
-  };
-
   const handleUpdateTags = async (id: string, tags: string[]) => {
     try {
       await apiService.updateDocument(id, { tags });
-      // Recharger les documents pour refléter les changements
-      loadDocuments();
-      // Recharger aussi les données pour recalculer les tags disponibles
-      loadArchivedCount();
+      
+      // Actualiser la liste des documents
+      await loadDocuments();
+      
+      // Mettre à jour le document dans le modal si c'est le même
+      if (previewModal.fullDocument?.id === id) {
+        const updatedDocument = documents.find(doc => doc.id === id);
+        if (updatedDocument) {
+          setPreviewModal(prev => ({
+            ...prev,
+            fullDocument: updatedDocument
+          }));
+        }
+      }
+      
       showToast('Tags mis à jour avec succès', 'success');
     } catch (error) {
       console.error('Erreur lors de la mise à jour des tags:', error);
       showToast('Erreur lors de la mise à jour des tags', 'error');
-      throw error;
+      handleError(error instanceof Error ? error : new Error('Erreur lors de la mise à jour des tags'));
+    }
+  };
+
+  const handleShareDocument = async (id: string) => {
+    try {
+      // Ici on pourrait implémenter la logique de partage
+      // Pour l'instant, on copie le lien vers le presse-papier
+      const url = `${window.location.origin}/document/${id}`;
+      await navigator.clipboard.writeText(url);
+      showToast('Lien copié dans le presse-papier', 'success');
+    } catch (error) {
+      console.error('Erreur lors du partage:', error);
+      showToast('Erreur lors du partage', 'error');
+    }
+  };
+
+  const handleDeleteFromModal = async (id: string) => {
+    const success = await deleteDocument(id);
+    if (success) {
+      closePreviewModal();
+      showToast('Document supprimé avec succès', 'success');
+    }
+  };
+
+  const handleArchiveFromModal = async (id: string) => {
+    const success = await archiveDocument(id);
+    if (success) {
+      // Mettre à jour le document dans le modal
+      if (previewModal.fullDocument?.id === id) {
+        setPreviewModal(prev => ({
+          ...prev,
+          fullDocument: prev.fullDocument ? { ...prev.fullDocument, archived: true } : null
+        }));
+      }
+      showToast('Document archivé avec succès', 'success');
+    }
+  };
+
+  const handleUnarchiveFromModal = async (id: string) => {
+    const success = await unarchiveDocument(id);
+    if (success) {
+      // Mettre à jour le document dans le modal
+      if (previewModal.fullDocument?.id === id) {
+        setPreviewModal(prev => ({
+          ...prev,
+          fullDocument: prev.fullDocument ? { ...prev.fullDocument, archived: false } : null
+        }));
+      }
+      showToast('Document désarchivé avec succès', 'success');
     }
   };
 
@@ -367,6 +377,7 @@ export const DashboardPage = () => {
           type: document.type,
           size: document.size
         },
+        fullDocument: document,
         fileData: null,
         loading: true,
       });
@@ -401,9 +412,42 @@ export const DashboardPage = () => {
     setPreviewModal({
       show: false,
       document: null,
+      fullDocument: null,
       fileData: null,
       loading: false,
     });
+  };
+
+  // Fonctions de navigation entre documents
+  const getCurrentDocumentIndex = () => {
+    if (!previewModal.fullDocument || !Array.isArray(filteredDocuments)) return -1;
+    return filteredDocuments.findIndex(doc => doc.id === previewModal.fullDocument!.id);
+  };
+
+  const handleNavigatePrevious = () => {
+    const currentIndex = getCurrentDocumentIndex();
+    if (currentIndex > 0) {
+      const previousDocument = filteredDocuments[currentIndex - 1];
+      handleViewDocument(previousDocument.id);
+    }
+  };
+
+  const handleNavigateNext = () => {
+    const currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < filteredDocuments.length - 1) {
+      const nextDocument = filteredDocuments[currentIndex + 1];
+      handleViewDocument(nextDocument.id);
+    }
+  };
+
+  const canNavigatePrevious = () => {
+    const currentIndex = getCurrentDocumentIndex();
+    return currentIndex > 0;
+  };
+
+  const canNavigateNext = () => {
+    const currentIndex = getCurrentDocumentIndex();
+    return currentIndex >= 0 && currentIndex < filteredDocuments.length - 1;
   };
 
   const confirmDeleteDocument = async () => {
@@ -577,11 +621,7 @@ export const DashboardPage = () => {
                   key={document.id}
                   document={document}
                   onToggleFavorite={handleToggleFavorite}
-                  onDelete={handleDeleteDocument}
                   onView={handleViewDocument}
-                  onArchive={handleArchiveDocument}
-                  onUnarchive={handleUnarchiveDocument}
-                  onUpdateTags={handleUpdateTags}
                   viewMode={viewMode}
                 />
               ))}
@@ -665,6 +705,19 @@ export const DashboardPage = () => {
         onClose={closePreviewModal}
         document={previewModal.document}
         fileData={previewModal.fileData}
+        fullDocument={previewModal.fullDocument}
+        onToggleFavorite={handleToggleFavorite}
+        onDelete={handleDeleteFromModal}
+        onArchive={handleArchiveFromModal}
+        onUnarchive={handleUnarchiveFromModal}
+        onUpdateTags={handleUpdateTags}
+        onShare={handleShareDocument}
+        onNavigatePrevious={handleNavigatePrevious}
+        onNavigateNext={handleNavigateNext}
+        canNavigatePrevious={canNavigatePrevious()}
+        canNavigateNext={canNavigateNext()}
+        currentIndex={getCurrentDocumentIndex()}
+        totalDocuments={filteredDocuments.length}
       />
 
       {/* Aide des raccourcis clavier */}

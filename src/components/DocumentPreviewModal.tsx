@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { X, Download, FileText, Image, FileVideo, FileAudio, Archive } from 'lucide-react';
+import { X, Download, FileText, Image, FileVideo, FileAudio, Archive, Star, Trash2, Share2, Tag, Plus, Check, ArchiveRestore, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Document } from '../types';
 
 interface DocumentPreviewModalProps {
   isOpen: boolean;
@@ -14,15 +15,108 @@ interface DocumentPreviewModalProps {
     dataUrl: string;
     type: string;
   } | null;
+  // Actions supplémentaires
+  fullDocument?: Document | null; // Document complet avec tous les champs
+  onToggleFavorite?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onArchive?: (id: string) => void;
+  onUnarchive?: (id: string) => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
+  onShare?: (id: string) => void;
+  // Navigation entre documents
+  onNavigatePrevious?: () => void;
+  onNavigateNext?: () => void;
+  canNavigatePrevious?: boolean;
+  canNavigateNext?: boolean;
+  currentIndex?: number;
+  totalDocuments?: number;
 }
 
 export const DocumentPreviewModal = ({ 
   isOpen, 
   onClose, 
   document, 
-  fileData 
+  fileData,
+  fullDocument,
+  onToggleFavorite,
+  onDelete,
+  onArchive,
+  onUnarchive,
+  onUpdateTags,
+  onShare,
+  onNavigatePrevious,
+  onNavigateNext,
+  canNavigatePrevious,
+  canNavigateNext,
+  currentIndex,
+  totalDocuments
 }: DocumentPreviewModalProps) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [editingTags, setEditingTags] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const [editableTags, setEditableTags] = useState<string[]>([]);
+
+  // Initialiser les tags modifiables avec les tags du document
+  useEffect(() => {
+    if (fullDocument?.tags) {
+      setEditableTags([...fullDocument.tags]);
+    }
+  }, [fullDocument?.tags]);
+
+  const handleSaveTags = () => {
+    if (fullDocument && onUpdateTags) {
+      onUpdateTags(fullDocument.id, editableTags);
+      setEditingTags(false);
+    }
+  };
+
+  const handleAddTag = () => {
+    if (newTag.trim() && !editableTags.includes(newTag.trim())) {
+      setEditableTags([...editableTags, newTag.trim()]);
+      setNewTag('');
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setEditableTags(editableTags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAddTag();
+    }
+  };
+
+  // Gestion des événements clavier pour la navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (canNavigatePrevious && onNavigatePrevious) {
+            onNavigatePrevious();
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (canNavigateNext && onNavigateNext) {
+            onNavigateNext();
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          onClose();
+          break;
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, canNavigatePrevious, canNavigateNext, onNavigatePrevious, onNavigateNext, onClose]);
 
   useEffect(() => {
     if (fileData && fileData.dataUrl) {
@@ -257,7 +351,21 @@ export const DocumentPreviewModal = ({
       <div className="bg-base-100 rounded-lg shadow-xl max-w-6xl w-full h-full max-h-screen overflow-hidden flex flex-col border border-base-300">
         {/* Header */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-base-300 flex-shrink-0 bg-base-200">
-          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+          {/* Navigation précédente */}
+          <div className="flex items-center space-x-2">
+            {onNavigatePrevious && (
+              <button
+                onClick={onNavigatePrevious}
+                disabled={!canNavigatePrevious}
+                className="btn btn-sm btn-circle btn-outline"
+                title="Document précédent (←)"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 mx-4">
             <div className="flex-shrink-0">
               {getFileIcon(document.type, document.name)}
             </div>
@@ -265,13 +373,21 @@ export const DocumentPreviewModal = ({
               <h3 className="text-sm sm:text-lg font-semibold text-base-content truncate">
                 {document.name}
               </h3>
-              <p className="text-xs sm:text-sm text-base-content/60">
-                {document.type.toUpperCase()} • {formatFileSize(document.size)}
-              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-xs sm:text-sm text-base-content/60">
+                  {document.type.toUpperCase()} • {formatFileSize(document.size)}
+                </p>
+                {/* Indicateur de position */}
+                {currentIndex !== undefined && totalDocuments !== undefined && (
+                  <span className="text-xs text-base-content/50">
+                    {currentIndex + 1} / {totalDocuments}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
+          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
             {blobUrl && (
               <button
                 onClick={handleDownload}
@@ -282,16 +398,193 @@ export const DocumentPreviewModal = ({
                 <span className="hidden sm:inline ml-1">Télécharger</span>
               </button>
             )}
+            
+            {/* Navigation suivante */}
+            {onNavigateNext && (
+              <button
+                onClick={onNavigateNext}
+                disabled={!canNavigateNext}
+                className="btn btn-sm btn-circle btn-outline"
+                title="Document suivant (→)"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+            
             <button
               onClick={onClose}
               className="btn btn-sm btn-outline hover:btn-error"
-              title="Fermer"
+              title="Fermer (Esc)"
             >
               <X className="w-4 h-4" />
               <span className="hidden sm:inline ml-1">Fermer</span>
             </button>
           </div>
         </div>
+
+        {/* Actions et Tags */}
+        {fullDocument && (
+          <div className="flex flex-col border-b border-base-300 bg-base-100">
+            {/* Barre d'actions */}
+            <div className="flex items-center justify-between p-3 sm:p-4">
+              <div className="flex items-center space-x-2">
+                {/* Toggle favoris */}
+                {onToggleFavorite && (
+                  <button
+                    onClick={() => onToggleFavorite(fullDocument.id)}
+                    className={`btn btn-sm ${fullDocument.favorite ? 'btn-warning' : 'btn-outline'}`}
+                    title={fullDocument.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  >
+                    <Star className={`w-4 h-4 ${fullDocument.favorite ? 'fill-current' : ''}`} />
+                    <span className="hidden sm:inline ml-1">
+                      {fullDocument.favorite ? 'Favoris' : 'Favoris'}
+                    </span>
+                  </button>
+                )}
+
+                {/* Archiver/Désarchiver */}
+                {fullDocument.archived ? (
+                  onUnarchive && (
+                    <button
+                      onClick={() => onUnarchive(fullDocument.id)}
+                      className="btn btn-sm btn-outline btn-info"
+                      title="Désarchiver"
+                    >
+                      <ArchiveRestore className="w-4 h-4" />
+                      <span className="hidden sm:inline ml-1">Désarchiver</span>
+                    </button>
+                  )
+                ) : (
+                  onArchive && (
+                    <button
+                      onClick={() => onArchive(fullDocument.id)}
+                      className="btn btn-sm btn-outline btn-warning"
+                      title="Archiver"
+                    >
+                      <ArchiveRestore className="w-4 h-4" />
+                      <span className="hidden sm:inline ml-1">Archiver</span>
+                    </button>
+                  )
+                )}
+
+                {/* Modifier les tags */}
+                {onUpdateTags && (
+                  <button
+                    onClick={() => setEditingTags(!editingTags)}
+                    className={`btn btn-sm ${editingTags ? 'btn-primary' : 'btn-outline'}`}
+                    title="Modifier les tags"
+                  >
+                    <Tag className="w-4 h-4" />
+                    <span className="hidden sm:inline ml-1">Tags</span>
+                  </button>
+                )}
+
+                {/* Partager */}
+                {onShare && (
+                  <button
+                    onClick={() => onShare(fullDocument.id)}
+                    className="btn btn-sm btn-outline btn-secondary"
+                    title="Partager"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span className="hidden sm:inline ml-1">Partager</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Supprimer */}
+              {onDelete && (
+                <button
+                  onClick={() => {
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
+                      onDelete(fullDocument.id);
+                      onClose();
+                    }
+                  }}
+                  className="btn btn-sm btn-outline btn-error"
+                  title="Supprimer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1">Supprimer</span>
+                </button>
+              )}
+            </div>
+
+            {/* Section des tags */}
+            <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-base-content/70">Tags:</span>
+                
+                {editingTags ? (
+                  /* Mode édition des tags */
+                  <div className="flex flex-wrap items-center gap-2 flex-1">
+                    {editableTags.map((tag, index) => (
+                      <div key={index} className="badge badge-primary gap-1">
+                        {tag}
+                        <button
+                          onClick={() => handleRemoveTag(tag)}
+                          className="btn btn-xs btn-circle btn-ghost hover:btn-error"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        placeholder="Nouveau tag"
+                        value={newTag}
+                        onChange={(e) => setNewTag(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        className="input input-xs input-bordered w-24"
+                      />
+                      <button
+                        onClick={handleAddTag}
+                        className="btn btn-xs btn-primary"
+                        disabled={!newTag.trim()}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                    
+                    <div className="flex gap-1 ml-2">
+                      <button
+                        onClick={handleSaveTags}
+                        className="btn btn-xs btn-success"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingTags(false);
+                          setEditableTags(fullDocument.tags || []);
+                          setNewTag('');
+                        }}
+                        className="btn btn-xs btn-ghost"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Mode affichage des tags */
+                  <div className="flex flex-wrap gap-1">
+                    {fullDocument.tags && fullDocument.tags.length > 0 ? (
+                      fullDocument.tags.map((tag, index) => (
+                        <span key={index} className="badge badge-outline">
+                          {tag}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-base-content/50 italic">Aucun tag</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Content */}
         <div className="p-3 sm:p-4 overflow-auto flex-1 min-h-0 bg-base-50">
