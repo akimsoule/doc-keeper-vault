@@ -2,6 +2,7 @@ import { Context } from '@netlify/functions';
 import { SearchService } from '../files.core/src/services/searchService';
 import { StatsService } from '../files.core/src/services/statsService';
 import { LogService } from '../files.core/src/services/logService';
+import { activityService } from '../files.core/src/services/activityService';
 import {
   handleCorsOptions,
   requireAuth,
@@ -51,6 +52,9 @@ export default handleErrors(async (request: Request, context: Context) => {
         
         case 'user-stats':
           return await handleUserStats(url, user);
+        
+        case 'recent-activities':
+          return await handleRecentActivities(url, user);
         
         default:
           return createErrorResponse('Action non trouvée', 404);
@@ -185,5 +189,19 @@ async function handleUserStats(url: URL, user: any) {
   } catch (error) {
     console.error('Erreur lors de la récupération des statistiques utilisateur:', error);
     return createErrorResponse('Erreur lors de la récupération des statistiques utilisateur', 500);
+  }
+}
+
+async function handleRecentActivities(url: URL, user: any) {
+  try {
+    const limit = parseInt(url.searchParams.get('limit') || '10');
+    
+    const activities = await activityService.getRecentActivities(user.userId, limit);
+    
+    return createSuccessResponse(activities);
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération des activités récentes:', error);
+    return createErrorResponse('Erreur lors de la récupération des activités récentes', 500);
   }
 }

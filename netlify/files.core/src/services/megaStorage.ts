@@ -215,7 +215,7 @@ export class MegaStorageService {
    * @param folderId - ID du dossier à scanner (optionnel, par défaut le dossier racine)
    * @returns Un tableau d'objets contenant les informations et le buffer de chaque fichier.
    */
-  async getAllFilesWithContent(folderId?: string): Promise<{ fileId: string; name: string; buffer: Buffer }[]> {
+  async getAllFilesWithContent(folderId?: string): Promise<{ fileId: string; name: string; buffer: Buffer; type: string; mimeType: string; size: number }[]> {
     const storage = await this.getStorage();
     
     let targetFolder;
@@ -233,27 +233,46 @@ export class MegaStorageService {
     );
     
     console.log(`📁 Scanning ${folderId ? 'dossier spécifique' : 'dossier racine'}: ${files.length} fichiers trouvés`);
-    
-    const filesWithContent: { fileId: string; name: string; buffer: Buffer }[] = [];
+
+    const filesWithContent: { fileId: string; name: string; buffer: Buffer; type: string; mimeType: string; size: number }[] = [];
 
     for (const file of files) {
-      if (!file.nodeId || !file.name) continue; // Ignorer les fichiers sans ID ou nom
+      if (!file.nodeId || !file.name) {
+        console.log(`   ⚠️ Fichier ignoré (ID ou nom manquant): ${file.nodeId || 'unknown'}`);
+        continue;
+      }
 
       try {
         console.log(`   ⬇️ Téléchargement: ${file.name}...`);
         const buffer = await file.downloadBuffer({});
+        
+        // Validation du buffer
+        if (!buffer || buffer.length === 0) {
+          console.warn(`   ⚠️ Fichier vide ignoré: ${file.name}`);
+          continue;
+        }
+
+        // Détection du type MIME basée sur l'extension
+        const extension = file.name.split('.').pop()?.toLowerCase() || '';
+        const mimeType = this.getMimeType(extension);
+        
         filesWithContent.push({
           fileId: file.nodeId,
           name: file.name,
           buffer: buffer,
+          type: extension, // Extension du fichier pour compatibilité
+          mimeType: mimeType, // Type MIME détecté
+          size: buffer.length
         });
-        console.log(`   ✅ ${file.name} téléchargé (${buffer.length} bytes)`);
+        
+        console.log(`   ✅ ${file.name} téléchargé (${buffer.length} bytes, type: ${extension}, MIME: ${mimeType})`);
       } catch (error) {
         console.error(`   ❌ Erreur lors du téléchargement du fichier ${file.name} (${file.nodeId}):`, error);
         // Continuer avec les autres fichiers même si un échoue
       }
     }
 
+    console.log(`📋 Récupération terminée: ${filesWithContent.length}/${files.length} fichiers traités avec succès`);
     return filesWithContent;
   }
 

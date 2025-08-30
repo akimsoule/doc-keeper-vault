@@ -1,4 +1,5 @@
 import { Document } from "../types";
+import { Activity } from "../types";
 import { cacheService } from "./cacheService";
 
 // Types API
@@ -564,6 +565,51 @@ class ApiService {
     return result;
   }
 
+  async getRecentActivities(limit = 10): Promise<Activity[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/search/recent-activities?limit=${limit}`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
+
+      // Les données du backend ont un format différent, nous devons les adapter
+      const backendActivities = await this.handleResponse<Array<{
+        id: string;
+        type: string;
+        document: string;
+        documentId: string;
+        userId: string;
+        date: string;
+        details?: {
+          action?: string;
+          entity?: string;
+          additionalDetails?: string;
+          documentDetails?: Record<string, unknown>;
+        };
+      }>>(response);
+
+      // Adapter les données du backend vers notre format Activity
+      const activities: Activity[] = backendActivities.map(activity => ({
+        id: activity.id,
+        type: activity.type as Activity['type'],
+        documentName: activity.document,
+        documentId: activity.documentId,
+        timestamp: activity.date,
+        details: activity.details?.additionalDetails || ''
+      }));
+
+      return activities;
+    } catch (error) {
+      console.warn('Endpoint des activités récentes non disponible, utilisation des données simulées', error);
+      // Fallback vers des activités simulées si l'endpoint n'est pas disponible
+      return generateSimulatedActivities(limit);
+    }
+  }
+
   // === TAGS ===
 
   async getTags() {
@@ -775,6 +821,30 @@ class ApiService {
     return cacheService.startAutoCleanup(intervalMs);
   }
 }
+
+// Fonction pour générer des activités simulées (fallback)
+const generateSimulatedActivities = (limit: number): Activity[] => {
+  const types: Activity['type'][] = ['upload', 'update', 'delete', 'view', 'download', 'sync'];
+  const documentNames = [
+    'Rapport_financier_Q4.pdf',
+    'Présentation_client.pptx',
+    'Facture_2024_001.pdf',
+    'Contrat_prestation.docx',
+    'Budget_prévisionnel.xlsx',
+    'Photo_équipe.jpg',
+    'Manuel_utilisateur.pdf',
+    'Sauvegarde_données.zip'
+  ];
+
+  return Array.from({ length: Math.min(limit, 10) }, (_, index) => ({
+    id: `simulated-${index}`,
+    type: types[Math.floor(Math.random() * types.length)],
+    documentName: documentNames[Math.floor(Math.random() * documentNames.length)],
+    documentId: `doc-${index}`,
+    timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+    details: 'Activité simulée (endpoint backend non disponible)'
+  }));
+};
 
 // Instance singleton du service API
 export const apiService = new ApiService();

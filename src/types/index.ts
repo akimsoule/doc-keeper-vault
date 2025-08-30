@@ -23,3 +23,12 @@ export interface Category {
 export type ViewMode = 'grid' | 'list';
 export type SortBy = 'name' | 'date' | 'size' | 'category';
 export type SortOrder = 'asc' | 'desc';
+
+export interface Activity {
+  id: string;
+  type: 'upload' | 'update' | 'delete' | 'view' | 'download' | 'sync';
+  documentName: string;
+  documentId: string;
+  timestamp: string;
+  details?: string;
+}

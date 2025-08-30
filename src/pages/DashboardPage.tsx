@@ -7,6 +7,7 @@ import { DocumentCard } from '../components/DocumentCard';
 import { UploadArea } from '../components/UploadArea';
 import { ViewControls } from '../components/ViewControls';
 import { DocumentPreviewModal } from '../components/DocumentPreviewModal';
+import { Pagination } from '../components/Pagination';
 import { ErrorMessage } from '../components/ErrorBoundary';
 import { LoadingSkeleton } from '../components/Loading';
 import { KeyboardShortcutsHelp } from '../components/SwipeGesture';
@@ -61,15 +62,19 @@ export const DashboardPage = () => {
     documents,
     loading: documentsLoading,
     error: documentsError,
+    total,
+    page: currentPage,
+    totalPages,
     uploadDocument,
     updateDocument,
     deleteDocument,
     loadDocuments,
+    goToPage,
     clearError: clearDocumentsError,
   } = useDocuments({
     autoLoad: true,
-    // Ne pas passer searchQuery et category ici pour récupérer TOUS les documents
-    // Le filtrage se fera dans le useMemo ci-dessous
+    searchQuery: searchTerm,
+    category: selectedCategory,
   });
 
   // Hook des toasts
@@ -115,15 +120,12 @@ export const DashboardPage = () => {
     }
   }, [syncMegaFiles, loadDocuments]);
 
-  // Documents filtrés et catégories dynamiques
-  const { filteredDocuments, categories, totalDocuments } = useMemo(() => {
+  // Documents et catégories dynamiques
+  const { categories } = useMemo(() => {
     // Protection contre undefined/null
     if (!Array.isArray(documents)) {
-      return { filteredDocuments: [], categories: [], totalDocuments: 0 };
+      return { categories: [] };
     }
-    
-    // Calculer le total des documents originaux (non filtrés)
-    const total = documents.length;
     
     // Calculer les catégories à partir des documents
     const categoryMap = new Map<string, number>();
@@ -139,18 +141,16 @@ export const DashboardPage = () => {
       icon: getCategoryIcon(name),
       count,
     }));
-
-    // Filtrer les documents
-    const filtered = documents.filter((doc) => {
-      const matchesSearch = searchTerm === '' || 
-        doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (doc.tags && doc.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
-      const matchesCategory = selectedCategory === '' || doc.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
     
-    return { filteredDocuments: filtered, categories: dynamicCategories, totalDocuments: total };
-  }, [documents, searchTerm, selectedCategory, getCategoryColor, getCategoryIcon]);
+    return { categories: dynamicCategories };
+  }, [documents, getCategoryColor, getCategoryIcon]);
+
+  // Remettre à la page 1 quand les filtres changent
+  useEffect(() => {
+    if (currentPage > 1) {
+      goToPage(1);
+    }
+  }, [searchTerm, selectedCategory, goToPage, currentPage]);
 
   // Configuration des raccourcis clavier
   const keyboardShortcuts = useMemo(() => ({
@@ -390,14 +390,14 @@ export const DashboardPage = () => {
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
         showFilters={showFilters}
-        totalDocuments={totalDocuments}
+        totalDocuments={total}
       />
 
       {/* View Controls */}
       <ViewControls
         viewMode={viewMode}
         setViewMode={setViewMode}
-        totalDocuments={filteredDocuments.length}
+        totalDocuments={documents.length}
       />
 
       {/* Loading State */}
@@ -424,13 +424,13 @@ export const DashboardPage = () => {
       {/* Documents Grid */}
       {!documentsLoading && (
         <>
-          {filteredDocuments.length > 0 ? (
+          {documents.length > 0 ? (
             <div className={`${
               viewMode === 'grid' 
                 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
                 : 'space-y-3'
             }`}>
-              {filteredDocuments.map((document) => (
+              {documents.map((document) => (
                 <DocumentCard
                   key={document.id}
                   document={document}
@@ -471,6 +471,17 @@ export const DashboardPage = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Pagination */}
+      {!documentsLoading && documents.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={goToPage}
+          isLoading={documentsLoading}
+          className="my-8"
+        />
       )}
 
       {/* Modal de confirmation de suppression */}

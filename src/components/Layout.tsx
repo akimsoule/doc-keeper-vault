@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Files, Bell, User, LogOut, UserPlus, Settings, BarChart3 } from 'lucide-react';
+import { Files, Bell, User, LogOut, UserPlus, BarChart3 } from 'lucide-react';
 import { ThemeSelector } from '../components/ThemeSelector';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -51,9 +51,6 @@ export const Layout = ({ children }: LayoutProps) => {
                   <button className="btn btn-ghost btn-sm btn-square">
                     <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
-                  <button className="btn btn-ghost btn-sm btn-square hidden sm:flex">
-                    <Settings className="w-5 h-5" />
-                  </button>
                 </>
               )}
               <ThemeSelector />
@@ -68,7 +65,6 @@ export const Layout = ({ children }: LayoutProps) => {
                   <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
                     <li><Link to="/dashboard/profile"><User className="w-4 h-4" />Profil</Link></li>
                     <li><Link to="/dashboard/stats"><BarChart3 className="w-4 h-4" />Statistiques</Link></li>
-                    <li><Link to="/settings"><Settings className="w-4 h-4" />Paramètres</Link></li>
                     <li><button onClick={handleLogout}><LogOut className="w-4 h-4" />Déconnexion</button></li>
                   </ul>
                 </div>

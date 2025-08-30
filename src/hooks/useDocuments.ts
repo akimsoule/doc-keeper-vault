@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Document } from '../types';
 import apiService from '../services/apiService';
+import { useUserPreferences } from './useUserPreferences';
 
 interface UseDocumentsOptions {
   autoLoad?: boolean;
@@ -44,17 +45,21 @@ interface UseDocumentsResult {
   }) => Promise<Document | null>;
   deleteDocument: (id: string) => Promise<boolean>;
   searchDocuments: (query: string) => Promise<void>;
+  goToPage: (page: number) => void;
+  totalPages: number;
   clearError: () => void;
 }
 
 export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsResult => {
+  const { preferences } = useUserPreferences();
+  
   const {
     autoLoad = true,
     searchQuery = '',
     category,
     tag,
     page = 1,
-    limit = 20
+    limit = preferences.itemsPerPage || 20
   } = options;
 
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -79,9 +84,13 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
         category?: string;
         tag?: string;
         search?: string;
+        sortBy?: string;
+        sortOrder?: 'asc' | 'desc';
       } = {
         page: currentPage,
         limit: currentLimit,
+        sortBy: preferences.sortBy || 'date',
+        sortOrder: preferences.sortOrder || 'desc',
       };
       
       if (category) params.category = category;
@@ -99,7 +108,7 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
     } finally {
       setLoading(false);
     }
-  }, [currentPage, currentLimit, category, tag, searchQuery]);
+  }, [currentPage, currentLimit, category, tag, searchQuery, preferences.sortBy, preferences.sortOrder]);
 
   const createDocument = useCallback(async (data: {
     name: string;
@@ -245,6 +254,14 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
     }
   }, [currentLimit, category, tag]);
 
+  // Fonction pour aller à une page spécifique
+  const goToPage = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  // Calculer le nombre total de pages
+  const totalPages = Math.ceil(total / currentLimit);
+
   // Charger les documents automatiquement
   useEffect(() => {
     if (autoLoad) {
@@ -270,6 +287,8 @@ export const useDocuments = (options: UseDocumentsOptions = {}): UseDocumentsRes
     updateDocument,
     deleteDocument,
     searchDocuments,
+    goToPage,
+    totalPages,
     clearError,
   };
 };

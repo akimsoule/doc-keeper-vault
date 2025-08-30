@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { User, Shield, Bell, HelpCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Shield, Bell, HelpCircle, Settings } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
+import { UserPreferencesSettings } from '../components/UserPreferencesSettings';
 
 export const ProfilePage = () => {
   const { user } = useAuth();
@@ -40,9 +41,23 @@ export const ProfilePage = () => {
     }));
   };
 
+  // Écouter les événements d'ouverture des préférences depuis le Layout
+  useEffect(() => {
+    const handleOpenPreferences = () => {
+      setActiveTab('preferences');
+    };
+
+    window.addEventListener('openPreferences', handleOpenPreferences);
+    
+    return () => {
+      window.removeEventListener('openPreferences', handleOpenPreferences);
+    };
+  }, []);
+
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'security', label: 'Sécurité', icon: Shield },
+    { id: 'preferences', label: 'Préférences', icon: Settings },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'help', label: 'Aide', icon: HelpCircle },
   ];
@@ -53,7 +68,7 @@ export const ProfilePage = () => {
         {/* Header */}
         <div className="bg-base-200 p-6 rounded-lg">
           <div className="flex items-center space-x-4">
-            <div className="avatar">
+            <div className="">
               <div className="w-16 h-16 rounded-full bg-primary text-primary-content flex items-center justify-center">
                 <span className="text-2xl font-bold">
                   {user?.name?.charAt(0).toUpperCase()}
@@ -73,25 +88,34 @@ export const ProfilePage = () => {
         {/* Tabs */}
         <div className="bg-base-100 rounded-lg overflow-hidden shadow-sm">
           <div className="border-b border-base-300">
-            <nav className="flex space-x-8 px-6" aria-label="Tabs">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                      activeTab === tab.id
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-base-content/60 hover:text-base-content hover:border-base-300'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+            <div 
+              className="overflow-x-auto px-3 md:px-6" 
+              style={{
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+              }}
+            >
+              <nav className="flex space-x-2 md:space-x-6 min-w-max" aria-label="Tabs">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`py-4 px-2 md:px-3 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${
+                        activeTab === tab.id
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-base-content/60 hover:text-base-content hover:border-base-300'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="hidden md:inline">{tab.label}</span>
+                      <span className="md:hidden">{tab.label.split(' ')[0]}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
           </div>
 
           <div className="p-6">
@@ -138,69 +162,119 @@ export const ProfilePage = () => {
 
             {/* Onglet Sécurité */}
             {activeTab === 'security' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-base-content">Sécurité du compte</h2>
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-xl font-bold text-base-content mb-2">Sécurité du compte</h2>
+                  <p className="text-base-content/60 text-sm">Gérez votre mot de passe et la sécurité de votre compte</p>
+                </div>
                 
-                <form onSubmit={handlePasswordChange} className="space-y-4">
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text">Mot de passe actuel</span>
-                    </label>
-                    <input
-                      type="password"
-                      className="input input-bordered"
-                      value={profileForm.currentPassword}
-                      onChange={(e) => setProfileForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text">Nouveau mot de passe</span>
+                <div className="bg-base-200 p-6 rounded-lg">
+                  <h3 className="text-lg font-semibold text-base-content mb-4">Changer le mot de passe</h3>
+                  
+                  <form onSubmit={handlePasswordChange} className="space-y-6">
+                    <div className="form-control w-full">
+                      <label className="label pb-2">
+                        <span className="label-text font-medium text-base-content">Mot de passe actuel</span>
                       </label>
                       <input
                         type="password"
-                        className="input input-bordered"
-                        value={profileForm.newPassword}
-                        onChange={(e) => setProfileForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                        placeholder="Saisissez votre mot de passe actuel"
+                        className="input input-bordered w-full focus:input-primary transition-colors"
+                        value={profileForm.currentPassword}
+                        onChange={(e) => setProfileForm(prev => ({ ...prev, currentPassword: e.target.value }))}
                       />
                     </div>
 
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text">Confirmer le nouveau mot de passe</span>
-                      </label>
-                      <input
-                        type="password"
-                        className="input input-bordered"
-                        value={profileForm.confirmPassword}
-                        onChange={(e) => setProfileForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <button type="submit" className="btn btn-primary">
-                      Changer le mot de passe
-                    </button>
-                  </div>
-                </form>
-
-                <div className="divider"></div>
-
-                <div className="space-y-4">
-                  <h3 className="font-medium text-base-content">Sessions actives</h3>
-                  <div className="bg-base-200 p-4 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Session actuelle</p>
-                        <p className="text-sm text-base-content/60">Dernière activité: Maintenant</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="form-control w-full">
+                        <label className="label pb-2">
+                          <span className="label-text font-medium text-base-content">Nouveau mot de passe</span>
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Nouveau mot de passe"
+                          className="input input-bordered w-full focus:input-primary transition-colors"
+                          value={profileForm.newPassword}
+                          onChange={(e) => setProfileForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                        />
                       </div>
-                      <span className="badge badge-success">Actif</span>
+
+                      <div className="form-control w-full">
+                        <label className="label pb-2">
+                          <span className="label-text font-medium text-base-content">Confirmer le nouveau mot de passe</span>
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Confirmez votre nouveau mot de passe"
+                          className="input input-bordered w-full focus:input-primary transition-colors"
+                          value={profileForm.confirmPassword}
+                          onChange={(e) => setProfileForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                      <button type="submit" className="btn btn-primary gap-2 h-12 px-6">
+                        <Shield className="w-4 h-4" />
+                        Changer le mot de passe
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="bg-base-200 p-6 rounded-lg">
+                  <h3 className="text-lg font-semibold text-base-content mb-4">Sessions actives</h3>
+                  <p className="text-base-content/60 text-sm mb-6">Gérez vos sessions de connexion actives</p>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-base-100 p-4 rounded-lg border border-success/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-3 h-3 bg-success rounded-full"></div>
+                          <div>
+                            <p className="font-medium text-base-content">Session actuelle</p>
+                            <p className="text-sm text-base-content/60">Dernière activité: Maintenant</p>
+                            <p className="text-xs text-base-content/40">IP: 192.168.1.1 • Chrome sur macOS</p>
+                          </div>
+                        </div>
+                        <span className="badge badge-success">Actif</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <button className="btn btn-outline btn-error btn-sm gap-2">
+                        <Shield className="w-4 h-4" />
+                        Déconnecter toutes les autres sessions
+                      </button>
                     </div>
                   </div>
                 </div>
+
+                <div className="bg-base-200 p-6 rounded-lg">
+                  <h3 className="text-lg font-semibold text-base-content mb-4">Authentification à deux facteurs</h3>
+                  <p className="text-base-content/60 text-sm mb-6">Renforcez la sécurité de votre compte avec l'authentification à deux facteurs</p>
+                  
+                  <div className="flex items-center justify-between p-4 bg-base-100 rounded-lg border">
+                    <div className="flex items-center space-x-3">
+                      <Shield className="w-8 h-8 text-base-content/60" />
+                      <div>
+                        <p className="font-medium text-base-content">Authentification à deux facteurs</p>
+                        <p className="text-sm text-base-content/60">Non configurée</p>
+                      </div>
+                    </div>
+                    <button className="btn btn-primary btn-sm gap-2">
+                      <Shield className="w-4 h-4" />
+                      Configurer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Onglet Préférences */}
+            {activeTab === 'preferences' && (
+              <div className="space-y-6">
+                <UserPreferencesSettings />
               </div>
             )}
 

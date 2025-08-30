@@ -41,6 +41,121 @@ export class DocumentService {
     this.logService = logService;
   }
 
+  /**
+   * Détermine le type de document basé sur le nom du fichier et éventuellement le type MIME
+   * @param fileName - Nom du fichier avec extension
+   * @param mimeType - Type MIME optionnel
+   * @returns Type de document standardisé
+   */
+  private getDocumentTypeFromFile(fileName: string, mimeType?: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+    
+    // Types basés sur l'extension du fichier
+    const typeMapping: Record<string, string> = {
+      // Documents
+      'pdf': 'document',
+      'doc': 'document',
+      'docx': 'document',
+      'txt': 'document',
+      'rtf': 'document',
+      'odt': 'document',
+      
+      // Feuilles de calcul
+      'xls': 'spreadsheet',
+      'xlsx': 'spreadsheet',
+      'csv': 'spreadsheet',
+      'ods': 'spreadsheet',
+      
+      // Présentations
+      'ppt': 'presentation',
+      'pptx': 'presentation',
+      'odp': 'presentation',
+      
+      // Images
+      'jpg': 'image',
+      'jpeg': 'image',
+      'png': 'image',
+      'gif': 'image',
+      'bmp': 'image',
+      'svg': 'image',
+      'webp': 'image',
+      
+      // Vidéos
+      'mp4': 'video',
+      'avi': 'video',
+      'mov': 'video',
+      'wmv': 'video',
+      'webm': 'video',
+      'mkv': 'video',
+      
+      // Audio
+      'mp3': 'audio',
+      'wav': 'audio',
+      'ogg': 'audio',
+      'flac': 'audio',
+      'aac': 'audio',
+      
+      // Archives
+      'zip': 'archive',
+      'rar': 'archive',
+      '7z': 'archive',
+      'tar': 'archive',
+      'gz': 'archive',
+      
+      // Code
+      'js': 'code',
+      'ts': 'code',
+      'html': 'code',
+      'css': 'code',
+      'json': 'code',
+      'xml': 'code',
+      'py': 'code',
+      'java': 'code',
+      'cpp': 'code',
+      'c': 'code',
+    };
+    
+    // Vérifier d'abord par extension
+    if (typeMapping[extension]) {
+      return typeMapping[extension];
+    }
+    
+    // Fallback sur le MIME type si disponible
+    if (mimeType) {
+      if (mimeType.startsWith('image/')) return 'image';
+      if (mimeType.startsWith('video/')) return 'video';
+      if (mimeType.startsWith('audio/')) return 'audio';
+      if (mimeType.startsWith('text/')) return 'document';
+      if (mimeType.includes('pdf')) return 'document';
+      if (mimeType.includes('word')) return 'document';
+      if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'spreadsheet';
+      if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'presentation';
+    }
+    
+    // Par défaut
+    return 'document';
+  }
+
+  /**
+   * Détermine la catégorie d'un document basée sur son type
+   * @param type - Type de document détecté
+   * @returns Catégorie du document
+   */
+  private getCategoryFromType(type: string): string {
+    const categoryMapping: Record<string, string> = {
+      'image': 'images',
+      'video': 'videos',
+      'audio': 'audio',
+      'document': 'documents',
+      'spreadsheet': 'tableaux',
+      'presentation': 'presentations',
+      'archive': 'archives',
+      'code': 'development',
+    };
+    
+    return categoryMapping[type] || 'autres';
+  }
+
   async createDocument(data: CreateDocumentData) {
     let fileId = "";
     let fileSize = 0;
@@ -448,7 +563,7 @@ export class DocumentService {
     return {
       buffer: fileBuffer,
       filename: document.name,
-      mimeType: this.getMimeTypeFromExtension(document.type),
+      mimeType: this.getMimeTypeFromType(document.type),
     };
   }
 
@@ -557,11 +672,17 @@ export class DocumentService {
       if (existingDocument) {
         console.log(`   🔄 Document existant trouvé: ${existingDocument.name}. Mise à jour...`);
         
-        // Mise à jour du document existant
+        // Mise à jour du document existant avec détection de type
+        const detectedType = this.getDocumentTypeFromFile(megaFile.name, megaFile.mimeType);
+        const category = this.getCategoryFromType(detectedType);
+        
         const updatedDocument = await prisma.document.update({
           where: { id: existingDocument.id },
           data: {
             name: megaFile.name, // Mettre à jour le nom si il a changé
+            type: detectedType, // Mettre à jour le type
+            category: category, // Mettre à jour la catégorie
+            size: megaFile.size, // Mettre à jour la taille
             fileId: megaFile.fileId, // Mettre à jour le fileId MEGA
             modifiedAt: new Date(),
           },
@@ -579,15 +700,16 @@ export class DocumentService {
       } else {
         console.log(`   ✨ Nouveau fichier détecté: ${megaFile.name}. Ajout à la base de données...`);
         
-        // Création d'un nouveau document
-        const fileExt = megaFile.name.split('.').pop() || 'bin';
+        // Création d'un nouveau document avec détection de type appropriée
+        const detectedType = this.getDocumentTypeFromFile(megaFile.name, megaFile.mimeType);
+        const category = this.getCategoryFromType(detectedType);
         
         const document = await prisma.document.create({
           data: {
             name: megaFile.name,
-            type: fileExt,
-            category: 'synced',
-            size: megaFile.buffer.length,
+            type: detectedType,
+            category: category,
+            size: megaFile.size, // Utiliser la taille du buffer retournée par MEGA
             description: 'Document synchronisé depuis MEGA',
             tags: 'synced',
             fileId: megaFile.fileId,
@@ -617,15 +739,28 @@ export class DocumentService {
     };
   }
 
-  private getMimeTypeFromExtension(type: string): string {
+  /**
+   * Convertit un type de document en type MIME
+   * @param type Type de document
+   * @returns Type MIME correspondant
+   */
+  private getMimeTypeFromType(type: string): string {
     const mimeTypes: Record<string, string> = {
       pdf: "application/pdf",
       jpg: "image/jpeg",
       jpeg: "image/jpeg",
       png: "image/png",
+      gif: "image/gif",
+      bmp: "image/bmp",
       doc: "application/msword",
       docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      xls: "application/vnd.ms-excel",
+      xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ppt: "application/vnd.ms-powerpoint",
+      pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       txt: "text/plain",
+      zip: "application/zip",
+      rar: "application/x-rar-compressed",
     };
 
     return mimeTypes[type.toLowerCase()] || "application/octet-stream";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { 
   FileText, 
   HardDrive, 
@@ -14,15 +14,15 @@ import { useStats } from '../hooks/useStats';
 import { useNotifications } from '../hooks/useNotifications';
 import { useUserPreferences } from '../hooks/useUserPreferences';
 import { useMegaSync } from '../hooks/useMegaSync';
-import { UserPreferencesModal } from './UserPreferencesModal';
 import { NotificationCenter } from './NotificationCenter';
+import { useNavigate } from 'react-router-dom';
 
 interface QuickStatsProps {
   className?: string;
 }
 
 export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
-  const [showPreferences, setShowPreferences] = useState(false);
+  const navigate = useNavigate();
   const { preferences } = useUserPreferences();
   const { stats, loading, error, loadStats } = useStats({
     autoLoad: true,
@@ -43,7 +43,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
 
   // Notifier les nouvelles activités
   useEffect(() => {
-    if (stats?.recentActivity && stats.recentActivity.length > 0) {
+    if (stats?.recentActivity && Array.isArray(stats.recentActivity) && stats.recentActivity.length > 0) {
       const latestActivity = stats.recentActivity[0];
       const lastNotificationTime = localStorage.getItem('last-activity-notification');
       const currentTime = new Date().toISOString();
@@ -69,17 +69,19 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
   };
 
   const getTopCategories = () => {
-    if (!stats?.byCategory) return [];
-    return Object.entries(stats.byCategory)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5);
+    if (!stats?.categoriesStats) return [];
+    return stats.categoriesStats
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+      .map(cat => [cat.name, cat.count] as [string, number]);
   };
 
   const getTopTypes = () => {
-    if (!stats?.byType) return [];
-    return Object.entries(stats.byType)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3);
+    if (!stats?.typeStats) return [];
+    return stats.typeStats
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map(type => [type.name, type.count] as [string, number]);
   };
 
   if (loading) {
@@ -134,7 +136,14 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
             
             {/* Préférences */}
             <button 
-              onClick={() => setShowPreferences(true)}
+              onClick={() => {
+                navigate('/dashboard/profile');
+                // Déclencher l'événement pour basculer vers l'onglet préférences
+                setTimeout(() => {
+                  const event = new CustomEvent('openPreferences');
+                  window.dispatchEvent(event);
+                }, 100);
+              }}
               className="btn btn-ghost btn-circle"
               title="Préférences"
             >
@@ -174,7 +183,9 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm opacity-70">Activités récentes</p>
-                  <p className="text-2xl font-bold">{stats?.recentActivity?.length || 0}</p>
+                  <p className="text-2xl font-bold">
+                    {Array.isArray(stats?.recentActivity) ? stats.recentActivity.length : (stats?.recentActivity || 0)}
+                  </p>
                 </div>
                 <Activity className="w-8 h-8 text-accent" />
               </div>
@@ -232,20 +243,22 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
                 Activités récentes
               </h3>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {stats?.recentActivity && stats.recentActivity.length > 0 ? (
-                  stats.recentActivity.slice(0, 10).map((activity, index) => (
+                {Array.isArray(stats?.recentActivity) && stats.recentActivity.length > 0 ? (
+                  stats.recentActivity.slice(0, 10).map((activity: { type: string; document: string; date: string }, index: number) => (
                     <div key={index} className="flex items-center justify-between p-2 bg-base-100 rounded">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{activity.document}</p>
                         <p className="text-xs opacity-70">{activity.type}</p>
                       </div>
                       <span className="text-xs opacity-70 ml-2">
-                        {new Date(activity.date).toLocaleDateString('fr-FR', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {activity.date && activity.date !== 'Invalid Date' ? 
+                          new Date(activity.date).toLocaleDateString('fr-FR', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }) : 'Date non disponible'
+                        }
                       </span>
                     </div>
                   ))
@@ -271,12 +284,6 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ className = '' }) => {
           </div>
         </div>
       </div>
-
-      {/* Modal des préférences */}
-      <UserPreferencesModal 
-        isOpen={showPreferences}
-        onClose={() => setShowPreferences(false)}
-      />
     </>
   );
 };
