@@ -6,6 +6,7 @@ interface CategoryFilterProps {
   selectedCategory: string;
   setSelectedCategory: (categoryId: string) => void;
   showFilters: boolean;
+  totalDocuments: number;
 }
 
 export const CategoryFilter: React.FC<CategoryFilterProps> = ({
@@ -13,6 +14,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
   selectedCategory,
   setSelectedCategory,
   showFilters,
+  totalDocuments,
 }) => {
   if (!showFilters) return null;
 
@@ -22,8 +24,6 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
       setSelectedCategory(categoryId);
     }
   };
-
-  const totalCount = categories.reduce((sum, cat) => sum + cat.count, 0);
 
   return (
     <div 
@@ -48,9 +48,9 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
           }`}
           role="radio"
           aria-checked={selectedCategory === ''}
-          aria-label={`Afficher tous les documents (${totalCount} documents)`}
+          aria-label={`Afficher tous les documents (${totalDocuments} documents)`}
         >
-          Tous ({totalCount})
+          Tous ({totalDocuments})
         </button>
         {categories.map((category) => (
           <button

@@ -60,13 +60,12 @@ export const DashboardPage = () => {
     uploadDocument,
     updateDocument,
     deleteDocument,
-    searchDocuments,
     loadDocuments,
     clearError: clearDocumentsError,
   } = useDocuments({
     autoLoad: true,
-    searchQuery: searchTerm,
-    category: selectedCategory,
+    // Ne pas passer searchQuery et category ici pour récupérer TOUS les documents
+    // Le filtrage se fera dans le useMemo ci-dessous
   });
 
   // Hook des toasts
@@ -103,11 +102,14 @@ export const DashboardPage = () => {
   }, []);
 
   // Documents filtrés et catégories dynamiques
-  const { filteredDocuments, categories } = useMemo(() => {
+  const { filteredDocuments, categories, totalDocuments } = useMemo(() => {
     // Protection contre undefined/null
     if (!Array.isArray(documents)) {
-      return { filteredDocuments: [], categories: [] };
+      return { filteredDocuments: [], categories: [], totalDocuments: 0 };
     }
+    
+    // Calculer le total des documents originaux (non filtrés)
+    const total = documents.length;
     
     // Calculer les catégories à partir des documents
     const categoryMap = new Map<string, number>();
@@ -133,7 +135,7 @@ export const DashboardPage = () => {
       return matchesSearch && matchesCategory;
     });
     
-    return { filteredDocuments: filtered, categories: dynamicCategories };
+    return { filteredDocuments: filtered, categories: dynamicCategories, totalDocuments: total };
   }, [documents, searchTerm, selectedCategory, getCategoryColor, getCategoryIcon]);
 
   // Configuration des raccourcis clavier
@@ -299,13 +301,9 @@ export const DashboardPage = () => {
     }
   };
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = (query: string) => {
     setSearchTerm(query);
-    if (query && query.length > 2) {
-      await searchDocuments(query);
-    } else if (query === '') {
-      await loadDocuments();
-    }
+    // Le filtrage se fait automatiquement dans le useMemo
   };
 
   return (
@@ -356,6 +354,7 @@ export const DashboardPage = () => {
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
         showFilters={showFilters}
+        totalDocuments={totalDocuments}
       />
 
       {/* View Controls */}
