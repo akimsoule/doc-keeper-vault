@@ -17,7 +17,7 @@ import { useViewMode } from '../hooks/useViewMode';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useMegaSync } from '../hooks/useMegaSync';
-import { Category } from '../types';
+import { Category, Document as DocumentType } from '../types';
 import apiService from '../services/apiService';
 
 export const DashboardPage = () => {
@@ -35,6 +35,10 @@ export const DashboardPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [archivedCount, setArchivedCount] = useState(0);
+  const [totalAllDocuments, setTotalAllDocuments] = useState(0);
+  const [allNonArchivedDocuments, setAllNonArchivedDocuments] = useState<DocumentType[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<{
     show: boolean;
     documentId: string;
@@ -65,16 +69,20 @@ export const DashboardPage = () => {
     total,
     page: currentPage,
     totalPages,
-    uploadDocument,
     updateDocument,
     deleteDocument,
+    archiveDocument,
+    unarchiveDocument,
     loadDocuments,
+    uploadDocument,
     goToPage,
     clearError: clearDocumentsError,
   } = useDocuments({
     autoLoad: true,
     searchQuery: searchTerm,
-    category: selectedCategory,
+    category: selectedCategory === 'archive' ? '' : selectedCategory, // Ne pas filtrer par catégorie si c'est "archive"
+    includeArchived: selectedCategory === 'archive' ? true : includeArchived, // Toujours inclure les archivés si catégorie "archive"
+    onlyArchived: selectedCategory === 'archive', // Filtrer pour ne garder que les archivés si catégorie "archive"
   });
 
   // Hook des toasts
@@ -85,6 +93,46 @@ export const DashboardPage = () => {
     addToast({ message, type });
   }, [addToast]);
 
+  // Fonction pour charger le nombre de documents archivés
+  const loadArchivedCount = useCallback(async () => {
+    try {
+      // Compter les documents archivés
+      console.log('Loading archived count...');
+      const archivedResponse = await apiService.getDocuments({
+        page: 1,
+        limit: 1000, // Prendre un grand nombre pour compter
+        includeArchived: true
+      });
+      
+      console.log('All documents (with archived):', archivedResponse.documents);
+      // Log détaillé des documents pour debug
+      archivedResponse.documents.forEach((doc, index) => {
+        console.log(`Document ${index + 1}:`, {
+          id: doc.id,
+          name: doc.name,
+          archived: doc.archived,
+          archivedDate: doc.archivedDate
+        });
+      });
+      const archived = archivedResponse.documents.filter(doc => doc.archived);
+      console.log('Archived documents:', archived);
+      console.log('Archived count:', archived.length);
+      setArchivedCount(archived.length);
+      
+      // Calculer aussi le total des documents non archivés (pour le bouton "Tous")
+      const nonArchived = archivedResponse.documents.filter(doc => !doc.archived);
+      setTotalAllDocuments(nonArchived.length);
+      setAllNonArchivedDocuments(nonArchived);
+    } catch (error) {
+      console.error('Erreur lors du chargement du nombre de documents archivés:', error);
+    }
+  }, []);
+
+  // Charger le nombre de documents archivés au démarrage
+  useEffect(() => {
+    loadArchivedCount();
+  }, [loadArchivedCount]);
+
   // Fonctions helper pour les catégories
   const getCategoryColor = useCallback((category: string): string => {
     const colors: Record<string, string> = {
@@ -93,6 +141,7 @@ export const DashboardPage = () => {
       pdf: '#ef4444',
       tableaux: '#f59e0b',
       videos: '#8b5cf6',
+      archive: '#9333ea',
       autres: '#6b7280',
     };
     return colors[category] || '#6b7280';
@@ -105,6 +154,7 @@ export const DashboardPage = () => {
       pdf: '📕',
       tableaux: '📊',
       videos: '🎥',
+      archive: '📦',
       autres: '📁',
     };
     return icons[category] || '📁';
@@ -122,14 +172,20 @@ export const DashboardPage = () => {
 
   // Documents et catégories dynamiques
   const { categories } = useMemo(() => {
+    // Utiliser allNonArchivedDocuments pour calculer les catégories (pas documents qui varie selon la vue)
+    const documentsForCategories = allNonArchivedDocuments;
+    
     // Protection contre undefined/null
-    if (!Array.isArray(documents)) {
+    if (!Array.isArray(documentsForCategories)) {
       return { categories: [] };
     }
     
-    // Calculer les catégories à partir des documents
+    // Debug: afficher le nombre de documents archivés
+    console.log('archivedCount:', archivedCount);
+    
+    // Calculer les catégories à partir des documents NON ARCHIVÉS
     const categoryMap = new Map<string, number>();
-    documents.forEach(doc => {
+    documentsForCategories.forEach(doc => {
       const category = doc.category || 'autres';
       categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
     });
@@ -142,8 +198,19 @@ export const DashboardPage = () => {
       count,
     }));
     
+    // Ajouter la catégorie Archive (test avec compteur fixe)
+    dynamicCategories.push({
+      id: 'archive',
+      name: 'Archive',
+      color: getCategoryColor('archive'),
+      icon: getCategoryIcon('archive'),
+      count: archivedCount || 0, // Afficher 0 si pas de documents archivés
+    });
+    
+    console.log('Final categories:', dynamicCategories);
+    
     return { categories: dynamicCategories };
-  }, [documents, getCategoryColor, getCategoryIcon]);
+  }, [allNonArchivedDocuments, getCategoryColor, getCategoryIcon, archivedCount]);
 
   // Remettre à la page 1 quand les filtres changent
   useEffect(() => {
@@ -224,6 +291,44 @@ export const DashboardPage = () => {
       documentId: id,
       documentName: document.name,
     });
+  };
+
+  const handleArchiveDocument = async (id: string) => {
+    // Protection contre undefined/null
+    if (!Array.isArray(documents)) return;
+    
+    const document = documents.find(doc => doc.id === id);
+    if (!document) return;
+
+    const success = await archiveDocument(id);
+
+    if (success) {
+      showToast(
+        `Document "${document.name}" archivé avec succès`,
+        'success'
+      );
+      // Recharger le nombre de documents archivés
+      loadArchivedCount();
+    }
+  };
+
+  const handleUnarchiveDocument = async (id: string) => {
+    // Protection contre undefined/null
+    if (!Array.isArray(documents)) return;
+    
+    const document = documents.find(doc => doc.id === id);
+    if (!document) return;
+
+    const success = await unarchiveDocument(id);
+
+    if (success) {
+      showToast(
+        `Document "${document.name}" désarchivé avec succès`,
+        'success'
+      );
+      // Recharger le nombre de documents archivés
+      loadArchivedCount();
+    }
   };
 
   const handleViewDocument = async (id: string) => {
@@ -390,8 +495,25 @@ export const DashboardPage = () => {
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
         showFilters={showFilters}
-        totalDocuments={total}
+        totalDocuments={totalAllDocuments}
       />
+
+      {/* Archive Filter */}
+      {showFilters && selectedCategory !== 'archive' && (
+        <div className="mb-4 p-4 bg-base-200 rounded-lg">
+          <div className="form-control">
+            <label className="label cursor-pointer justify-start gap-3">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-primary"
+                checked={includeArchived}
+                onChange={(e) => setIncludeArchived(e.target.checked)}
+              />
+              <span className="label-text">Inclure les documents archivés</span>
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* View Controls */}
       <ViewControls
@@ -437,6 +559,8 @@ export const DashboardPage = () => {
                   onToggleFavorite={handleToggleFavorite}
                   onDelete={handleDeleteDocument}
                   onView={handleViewDocument}
+                  onArchive={handleArchiveDocument}
+                  onUnarchive={handleUnarchiveDocument}
                   viewMode={viewMode}
                 />
               ))}

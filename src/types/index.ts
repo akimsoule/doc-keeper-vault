@@ -10,6 +10,8 @@ export interface Document {
   thumbnail?: string;
   favorite: boolean;
   shared: boolean;
+  archived: boolean;
+  archivedDate?: Date;
 }
 
 export interface Category {
@@ -26,7 +28,7 @@ export type SortOrder = 'asc' | 'desc';
 
 export interface Activity {
   id: string;
-  type: 'upload' | 'update' | 'delete' | 'view' | 'download' | 'sync';
+  type: 'upload' | 'update' | 'delete' | 'view' | 'download' | 'sync' | 'archive' | 'unarchive';
   documentName: string;
   documentId: string;
   timestamp: string;

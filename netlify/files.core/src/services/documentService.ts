@@ -30,6 +30,7 @@ export interface UpdateDocumentData {
   description?: string;
   tags?: string; // Tags séparés par des virgules
   isFavorite?: boolean;
+  archived?: boolean;
 }
 
 export class DocumentService {
@@ -319,6 +320,7 @@ export class DocumentService {
       ownerId?: string;
       tags?: string[];
       search?: string;
+      archived?: boolean;
     }
   ) {
     const where: Record<string, unknown> = {};
@@ -326,6 +328,7 @@ export class DocumentService {
     if (filters?.type) where.type = filters.type;
     if (filters?.category) where.category = filters.category;
     if (filters?.ownerId) where.ownerId = filters.ownerId;
+    if (filters?.archived !== undefined) where.archived = filters.archived;
     if (filters?.tags && filters.tags.length > 0) {
       where.tags = { hasSome: filters.tags };
     }
@@ -359,12 +362,14 @@ export class DocumentService {
     ownerId?: string;
     tags?: string[];
     search?: string;
+    archived?: boolean;
   }) {
     const where: Record<string, unknown> = {};
 
     if (filters?.type) where.type = filters.type;
     if (filters?.category) where.category = filters.category;
     if (filters?.ownerId) where.ownerId = filters.ownerId;
+    if (filters?.archived !== undefined) where.archived = filters.archived;
     if (filters?.tags && filters.tags.length > 0) {
       where.tags = { hasSome: filters.tags };
     }
@@ -418,19 +423,27 @@ export class DocumentService {
   }
 
   async updateDocument(id: string, data: UpdateDocumentData, userId: string) {
+    const updateData: Partial<typeof data & { modifiedAt: Date; archivedAt?: Date | null }> = {
+      ...data,
+      tags: data.tags
+        ? (Array.isArray(data.tags) ? data.tags.join(",") : data.tags)
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+            .join(",")
+        : undefined,
+      modifiedAt: new Date(),
+    };
+
+    // Gérer l'archivage/désarchivage
+    if (data.archived !== undefined) {
+      updateData.archived = data.archived;
+      updateData.archivedAt = data.archived ? new Date() : null;
+    }
+
     const document = await prisma.document.update({
       where: { id },
-      data: {
-        ...data,
-        tags: data.tags
-          ? (Array.isArray(data.tags) ? data.tags.join(",") : data.tags)
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean)
-              .join(",")
-          : undefined,
-        modifiedAt: new Date(),
-      },
+      data: updateData,
       include: {
         owner: {
           select: {
@@ -442,8 +455,16 @@ export class DocumentService {
       },
     });
 
+    // Déterminer l'action de log en fonction de l'archivage
+    let action: "DOCUMENT_UPDATE" | "DOCUMENT_ARCHIVE" | "DOCUMENT_UNARCHIVE" = "DOCUMENT_UPDATE";
+    if (data.archived === true) {
+      action = "DOCUMENT_ARCHIVE";
+    } else if (data.archived === false) {
+      action = "DOCUMENT_UNARCHIVE";
+    }
+
     await this.logService.log({
-      action: "DOCUMENT_UPDATE",
+      action,
       entity: "DOCUMENT",
       entityId: id,
       userId,
@@ -764,5 +785,51 @@ export class DocumentService {
     };
 
     return mimeTypes[type.toLowerCase()] || "application/octet-stream";
+  }
+
+  /**
+   * Archive un document
+   * @param id ID du document
+   * @param userId ID de l'utilisateur
+   * @returns Document archivé
+   */
+  async archiveDocument(id: string, userId: string) {
+    return this.updateDocument(id, { archived: true }, userId);
+  }
+
+  /**
+   * Désarchive un document
+   * @param id ID du document
+   * @param userId ID de l'utilisateur
+   * @returns Document désarchivé
+   */
+  async unarchiveDocument(id: string, userId: string) {
+    return this.updateDocument(id, { archived: false }, userId);
+  }
+
+  /**
+   * Récupère tous les documents archivés d'un utilisateur
+   * @param userId ID de l'utilisateur
+   * @returns Documents archivés
+   */
+  async getArchivedDocuments(userId: string) {
+    return prisma.document.findMany({
+      where: {
+        ownerId: userId,
+        archived: true,
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        archivedAt: 'desc',
+      },
+    });
   }
 }

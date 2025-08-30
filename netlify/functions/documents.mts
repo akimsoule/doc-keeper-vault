@@ -23,92 +23,94 @@ const documentService = new DocumentService(megaStorageService, logService);
 
 // Fonction helper pour déterminer le type de document basé sur le fichier
 function getDocumentTypeFromFile(fileName: string, mimeType?: string): string {
-  const extension = fileName.split('.').pop()?.toLowerCase() || '';
-  
+  const extension = fileName.split(".").pop()?.toLowerCase() || "";
+
   // Types basés sur l'extension du fichier
   const typeMapping: Record<string, string> = {
     // Documents
-    'pdf': 'document',
-    'doc': 'document',
-    'docx': 'document',
-    'txt': 'document',
-    'rtf': 'document',
-    'odt': 'document',
-    
+    pdf: "document",
+    doc: "document",
+    docx: "document",
+    txt: "document",
+    rtf: "document",
+    odt: "document",
+
     // Feuilles de calcul
-    'xls': 'spreadsheet',
-    'xlsx': 'spreadsheet',
-    'csv': 'spreadsheet',
-    'ods': 'spreadsheet',
-    
+    xls: "spreadsheet",
+    xlsx: "spreadsheet",
+    csv: "spreadsheet",
+    ods: "spreadsheet",
+
     // Présentations
-    'ppt': 'presentation',
-    'pptx': 'presentation',
-    'odp': 'presentation',
-    
+    ppt: "presentation",
+    pptx: "presentation",
+    odp: "presentation",
+
     // Images
-    'jpg': 'image',
-    'jpeg': 'image',
-    'png': 'image',
-    'gif': 'image',
-    'bmp': 'image',
-    'svg': 'image',
-    'webp': 'image',
-    
+    jpg: "image",
+    jpeg: "image",
+    png: "image",
+    gif: "image",
+    bmp: "image",
+    svg: "image",
+    webp: "image",
+
     // Vidéos
-    'mp4': 'video',
-    'avi': 'video',
-    'mov': 'video',
-    'wmv': 'video',
-    'webm': 'video',
-    'mkv': 'video',
-    
+    mp4: "video",
+    avi: "video",
+    mov: "video",
+    wmv: "video",
+    webm: "video",
+    mkv: "video",
+
     // Audio
-    'mp3': 'audio',
-    'wav': 'audio',
-    'ogg': 'audio',
-    'flac': 'audio',
-    'aac': 'audio',
-    
+    mp3: "audio",
+    wav: "audio",
+    ogg: "audio",
+    flac: "audio",
+    aac: "audio",
+
     // Archives
-    'zip': 'archive',
-    'rar': 'archive',
-    '7z': 'archive',
-    'tar': 'archive',
-    'gz': 'archive',
-    
+    zip: "archive",
+    rar: "archive",
+    "7z": "archive",
+    tar: "archive",
+    gz: "archive",
+
     // Code
-    'js': 'code',
-    'ts': 'code',
-    'html': 'code',
-    'css': 'code',
-    'json': 'code',
-    'xml': 'code',
-    'py': 'code',
-    'java': 'code',
-    'cpp': 'code',
-    'c': 'code',
+    js: "code",
+    ts: "code",
+    html: "code",
+    css: "code",
+    json: "code",
+    xml: "code",
+    py: "code",
+    java: "code",
+    cpp: "code",
+    c: "code",
   };
-  
+
   // Vérifier d'abord par extension
   if (typeMapping[extension]) {
     return typeMapping[extension];
   }
-  
+
   // Fallback sur le MIME type si disponible
   if (mimeType) {
-    if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'video';
-    if (mimeType.startsWith('audio/')) return 'audio';
-    if (mimeType.startsWith('text/')) return 'document';
-    if (mimeType.includes('pdf')) return 'document';
-    if (mimeType.includes('word')) return 'document';
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'spreadsheet';
-    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'presentation';
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "video";
+    if (mimeType.startsWith("audio/")) return "audio";
+    if (mimeType.startsWith("text/")) return "document";
+    if (mimeType.includes("pdf")) return "document";
+    if (mimeType.includes("word")) return "document";
+    if (mimeType.includes("excel") || mimeType.includes("spreadsheet"))
+      return "spreadsheet";
+    if (mimeType.includes("powerpoint") || mimeType.includes("presentation"))
+      return "presentation";
   }
-  
+
   // Par défaut
-  return 'document';
+  return "document";
 }
 
 const documentsHandler = handleErrors(
@@ -130,9 +132,11 @@ const documentsHandler = handleErrors(
     }
 
     const url = new URL(request.url);
-    const pathSegments = url.pathname.split('/').filter(segment => segment !== '');
+    const pathSegments = url.pathname
+      .split("/")
+      .filter((segment) => segment !== "");
     const documentId = extractResourceId(url, "documents");
-    
+
     // Vérifier si c'est une action spéciale (ex: synchronisation)
     const action = pathSegments[pathSegments.length - 1];
 
@@ -216,6 +220,7 @@ async function handleGetDocuments(url: URL, user: any) {
     const search = sanitizeString(url.searchParams.get("search") || "");
     const tag = sanitizeString(url.searchParams.get("tag") || "");
     const userId = sanitizeString(url.searchParams.get("userId") || "");
+    const includeArchived = url.searchParams.get("includeArchived") === "true";
 
     const pagination = validatePagination(url);
 
@@ -224,6 +229,11 @@ async function handleGetDocuments(url: URL, user: any) {
     if (search) filters.search = search;
     if (tag) filters.tags = [tag];
     if (userId) filters.ownerId = userId;
+
+    // Par défaut, exclure les documents archivés
+    if (!includeArchived) {
+      filters.archived = false;
+    }
 
     const documents = await documentService.getAllDocuments(
       pagination.skip,
@@ -266,10 +276,10 @@ async function handleCreateDocument(request: Request, user: any) {
       }
 
       const file = files[0];
-      
+
       // Déterminer le type de document basé sur le fichier
       const documentType = getDocumentTypeFromFile(file.name, file.mimeType);
-      
+
       const createData = {
         name: sanitizeString(data.name || file.name),
         type: sanitizeString(data.type || documentType),
@@ -324,7 +334,10 @@ async function handleUpdateDocument(
     if (body.description)
       updateData.description = sanitizeString(body.description);
     if (body.tags) updateData.tags = body.tags;
-    if (typeof body.isFavorite === 'boolean') updateData.isFavorite = body.isFavorite;
+    if (typeof body.isFavorite === "boolean")
+      updateData.isFavorite = body.isFavorite;
+    if (typeof body.archived === "boolean")
+      updateData.archived = body.archived;
 
     const updatedDocument = await documentService.updateDocument(
       documentId,
@@ -358,32 +371,41 @@ async function handleSyncMegaFiles(request: Request, user: any) {
   try {
     const body = await request.json().catch(() => ({}));
     const folderId = body.folderId || undefined; // Optionnel: ID du dossier MEGA à synchroniser
-    
-    console.log(`🔄 Démarrage de la synchronisation MEGA par l'utilisateur ${user.userId}${folderId ? ` (dossier: ${folderId})` : ''}`);
-    
-    const result = await documentService.synchronizeMegaFiles(user.userId, folderId);
-    
+
+    console.log(
+      `🔄 Démarrage de la synchronisation MEGA par l'utilisateur ${
+        user.userId
+      }${folderId ? ` (dossier: ${folderId})` : ""}`
+    );
+
+    const result = await documentService.synchronizeMegaFiles(
+      user.userId,
+      folderId
+    );
+
     return createSuccessResponse({
       message: "Synchronisation MEGA terminée avec succès",
       syncedCount: result.syncedCount,
       updatedCount: result.updatedCount,
-      newDocuments: result.newDocuments.map(doc => ({
+      newDocuments: result.newDocuments.map((doc) => ({
         id: doc.id,
         name: doc.name,
         category: doc.category,
-        size: doc.size
+        size: doc.size,
       })),
-      updatedDocuments: result.updatedDocuments.map(doc => ({
+      updatedDocuments: result.updatedDocuments.map((doc) => ({
         id: doc.id,
         name: doc.name,
         category: doc.category,
-        size: doc.size
-      }))
+        size: doc.size,
+      })),
     });
   } catch (error) {
     console.error("Erreur lors de la synchronisation MEGA:", error);
     return createErrorResponse(
-      error instanceof Error ? error.message : "Erreur lors de la synchronisation MEGA",
+      error instanceof Error
+        ? error.message
+        : "Erreur lors de la synchronisation MEGA",
       500
     );
   }

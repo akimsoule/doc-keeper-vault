@@ -21,6 +21,8 @@ interface BackendDocument {
   tags: string;
   ownerId: string;
   isFavorite: boolean;
+  archived?: boolean;
+  archivedAt?: string;
   createdAt: string;
   modifiedAt: string;
   description?: string;
@@ -43,6 +45,8 @@ const adaptBackendDocument = (backendDoc: BackendDocument): Document => ({
   favorite: backendDoc.isFavorite,
   shared: false, // TODO: implémenter le partage dans le backend
   thumbnail: undefined, // TODO: implémenter les thumbnails
+  archived: backendDoc.archived || false,
+  archivedDate: backendDoc.archivedAt ? new Date(backendDoc.archivedAt) : undefined,
 });
 
 interface LoginResponse {
@@ -245,6 +249,7 @@ class ApiService {
     category?: string;
     search?: string;
     tag?: string;
+    includeArchived?: boolean;
   }) {
     // Créer une clé de cache
     const cacheKey = cacheService.generateKey('getDocuments', params);
@@ -271,6 +276,8 @@ class ApiService {
     if (params?.category) searchParams.append("category", params.category);
     if (params?.search) searchParams.append("search", params.search);
     if (params?.tag) searchParams.append("tag", params.tag);
+    if (params?.includeArchived !== undefined) 
+      searchParams.append("includeArchived", params.includeArchived.toString());
 
     const url = `${this.baseUrl}/documents${
       searchParams.toString() ? `?${searchParams}` : ""
@@ -388,6 +395,7 @@ class ApiService {
       description?: string;
       tags?: string[];
       isFavorite?: boolean; // Ajout du champ favorite
+      archived?: boolean; // Ajout du champ archived
     }
   ) {
     const response = await fetch(`${this.baseUrl}/documents/${id}`, {
