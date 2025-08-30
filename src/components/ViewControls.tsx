@@ -43,14 +43,6 @@ export const ViewControls: React.FC<ViewControlsProps> = ({
         </div>
       </div>
       
-      <div className="flex items-center gap-2 sm:gap-3">
-        <button className="btn btn-ghost btn-sm btn-square">
-          <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
-        </button>
-        <button className="btn btn-ghost btn-sm btn-square">
-          <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
-        </button>
-      </div>
     </div>
   );
 };
