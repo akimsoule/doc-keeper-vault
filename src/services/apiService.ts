@@ -42,6 +42,7 @@ const adaptBackendDocument = (backendDoc: BackendDocument): Document => ({
     : [],
   uploadDate: new Date(backendDoc.createdAt),
   lastModified: new Date(backendDoc.modifiedAt),
+  url: `/.netlify/functions/documents/${backendDoc.id}/download`,
   favorite: backendDoc.isFavorite,
   shared: false, // TODO: implémenter le partage dans le backend
   thumbnail: undefined, // TODO: implémenter les thumbnails
@@ -431,6 +432,20 @@ class ApiService {
     cacheService.invalidate('getUserStats');
     
     return result;
+  }
+
+  async downloadDocument(id: string): Promise<Blob> {
+    const response = await fetch(`${this.baseUrl}/documents/${id}/download`, {
+      method: "GET",
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Erreur lors du téléchargement' }));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.blob();
   }
 
   async syncMegaFiles(folderId?: string) {

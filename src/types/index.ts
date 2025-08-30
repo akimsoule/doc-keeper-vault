@@ -7,6 +7,7 @@ export interface Document {
   tags: string[];
   uploadDate: Date;
   lastModified: Date;
+  url: string;
   thumbnail?: string;
   favorite: boolean;
   shared: boolean;

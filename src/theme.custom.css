@@ -87,10 +87,9 @@ body {
 
 /* Cartes de documents améliorées */
 .document-card-enhanced {
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   background: linear-gradient(135deg, oklch(var(--color-base-100)) 0%, oklch(var(--color-base-100)) 60%, oklch(var(--color-base-200) / 0.5) 100%);
   border: 1px solid oklch(var(--color-base-300) / 0.6);
-  backdrop-filter: blur(4px);
   border-radius: 1rem;
 }
 
@@ -98,6 +97,83 @@ body {
   transform: translateY(-4px) scale(1.02);
   border-color: oklch(var(--color-primary) / 0.3);
   box-shadow: 0 8px 25px oklch(var(--color-primary) / 0.1);
+}
+
+/* Désactive l'effet hover quand un dropdown est ouvert */
+.document-card-enhanced.dropdown-active:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: oklch(var(--color-base-300) / 0.6) !important;
+}
+
+/* Empêche les clics sur la carte quand le dropdown est ouvert */
+/* TEMPORAIREMENT DÉSACTIVÉ POUR DEBUG
+.document-card-enhanced.dropdown-active {
+  pointer-events: none !important;
+}
+*/
+
+/* Autorise les clics sur le dropdown et tous ses enfants */
+.document-card-enhanced.dropdown-active .dropdown {
+  pointer-events: auto !important;
+}
+
+.document-card-enhanced.dropdown-active .dropdown * {
+  pointer-events: auto !important;
+}
+
+.document-card-enhanced.dropdown-active .dropdown-content {
+  pointer-events: auto !important;
+}
+
+.document-card-enhanced.dropdown-active .dropdown-content * {
+  pointer-events: auto !important;
+}
+
+.document-card-enhanced.dropdown-active .dropdown-content li {
+  pointer-events: auto !important;
+}
+
+.document-card-enhanced.dropdown-active .dropdown-content li button {
+  pointer-events: auto !important;
+}
+
+/* Styles pour les dropdowns */
+.dropdown-content {
+  z-index: 999999 !important;
+  position: absolute !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
+  pointer-events: auto !important;
+}
+
+.dropdown-content li button {
+  background-color: transparent !important;
+  color: #000000 !important;
+  border: none !important;
+  padding: 0.75rem 1rem !important;
+  width: 100% !important;
+  text-align: left !important;
+  border-radius: 0.5rem !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.dropdown-content li button:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.dropdown-content li button[style*="color: #dc2626"] {
+  color: #dc2626 !important;
+}
+
+.dropdown-content li button[style*="color: #dc2626"]:hover {
+  background-color: #fef2f2 !important;
 }
 
 /* Navigation élégante */
@@ -415,6 +491,29 @@ body {
 
 [data-theme="doc-keeper-dark"] .modal-box-modern {
   background: linear-gradient(135deg, oklch(var(--color-base-100)) 0%, oklch(var(--color-base-200) / 0.3) 100%);
+}
+
+/* Dropdown styles pour le mode sombre */
+[data-theme="doc-keeper-dark"] .dropdown-content {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
+  border-color: #374151 !important;
+}
+
+[data-theme="doc-keeper-dark"] .dropdown-content li button {
+  color: #ffffff !important;
+}
+
+[data-theme="doc-keeper-dark"] .dropdown-content li button:hover {
+  background-color: #374151 !important;
+}
+
+[data-theme="doc-keeper-dark"] .dropdown-content li button[style*="color: #dc2626"] {
+  color: #f87171 !important;
+}
+
+[data-theme="doc-keeper-dark"] .dropdown-content li button[style*="color: #dc2626"]:hover {
+  background-color: #450a0a !important;
 }
 
 /* Effets de lueur pour le mode sombre */

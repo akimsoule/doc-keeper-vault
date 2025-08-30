@@ -15,6 +15,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { Document } from '../types';
+import { apiService } from '../services/apiService';
 
 interface DocumentCardProps {
   document: Document;
@@ -79,7 +80,13 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
     }
   }, [showDropdown]);
 
-  const toggleDropdown = () => {
+  const toggleDropdown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDropdown(!showDropdown);
+  };
+
+  const toggleDropdownKeyboard = () => {
     setShowDropdown(!showDropdown);
   };
 
@@ -88,7 +95,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
     setShowDropdown(false);
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     onDelete(document.id);
     setShowDropdown(false);
   };
@@ -98,25 +107,112 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
     setShowDropdown(false);
   };
 
-  const handleDownloadClick = () => {
-    // TODO: Implémenter le téléchargement
-    console.log('Download:', document.id);
+  const handleDownloadClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      alert("Téléchargement en cours...");
+      // Télécharger le fichier via l'API
+      const blob = await apiService.downloadDocument(document.id);
+      
+      // Créer un lien temporaire pour télécharger le fichier
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = document.name;
+      window.document.body.appendChild(link);
+      link.click();
+      
+      // Nettoyer
+      window.document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('Téléchargement initié pour:', document.name);
+      // TODO: Afficher un toast de succès
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error);
+      
+      // Fallback: essayer avec l'URL directe
+      try {
+        const link = window.document.createElement('a');
+        link.href = document.url;
+        link.download = document.name;
+        link.target = '_blank';
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+      
+      } catch (fallbackError) {
+        console.error('Erreur du fallback:', fallbackError);
+        // TODO: Afficher un toast d'erreur
+      }
+    }
+    
     setShowDropdown(false);
   };
 
-  const handleShareClick = () => {
-    // TODO: Implémenter le partage
-    console.log('Share:', document.id);
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      // Créer l'URL de partage
+      const shareUrl = `${window.location.origin}/document/${document.id}`;
+      
+      // Copier dans le presse-papiers
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          console.log('Lien copié dans le presse-papiers');
+          // TODO: Afficher un toast de succès
+        }).catch((error) => {
+          console.error('Erreur lors de la copie:', error);
+          fallbackCopyToClipboard(shareUrl);
+        });
+      } else {
+        // Fallback pour les anciens navigateurs
+        fallbackCopyToClipboard(shareUrl);
+      }
+    } catch (error) {
+      console.error('Erreur lors du partage:', error);
+      // TODO: Afficher un toast d'erreur
+    }
+    
     setShowDropdown(false);
   };
 
-  const handleArchiveClick = () => {
+  // Fonction fallback pour copier dans le presse-papiers
+  const fallbackCopyToClipboard = (text: string) => {
+    const textArea = window.document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    window.document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      window.document.execCommand('copy');
+      console.log('Lien copié dans le presse-papiers (fallback)');
+      // TODO: Afficher un toast de succès
+    } catch (error) {
+      console.error('Erreur lors de la copie (fallback):', error);
+      // TODO: Afficher un toast d'erreur
+    }
+    
+    window.document.body.removeChild(textArea);
+  };
+
+  const handleArchiveClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (document.archived && onUnarchive) {
       onUnarchive(document.id);
     } else if (!document.archived && onArchive) {
       onArchive(document.id);
     }
-    setShowDropdown(false); // Fermer le dropdown après l'action
+    setShowDropdown(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
@@ -135,7 +231,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   if (viewMode === 'list') {
     return (
       <article 
-        className="group document-card-enhanced card card-compact shadow-sm hover:shadow-lg transition-all duration-200"
+        className={`group document-card-enhanced card card-compact shadow-sm hover:shadow-lg transition-shadow duration-200 ${showDropdown ? 'dropdown-active' : ''}`}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
         aria-label={`Document ${document.name}, ${formatFileSize(document.size)}, ${document.category}`}
@@ -221,7 +317,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                   ref={dropdownRef}
                   className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-base-content hover:bg-base-200"
                   onClick={toggleDropdown}
-                  onKeyDown={(e) => handleKeyDown(e, toggleDropdown)}
+                  onKeyDown={(e) => handleKeyDown(e, toggleDropdownKeyboard)}
                   title="Plus d'actions"
                   aria-label={`Plus d'actions pour ${document.name}`}
                   aria-expanded={showDropdown}
@@ -230,48 +326,86 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                   <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
                 </button>
                 {showDropdown && (
-                  <ul 
-                    className="dropdown-content z-[9999] menu p-2 shadow bg-base-100 rounded-box w-52 border border-base-300"
+                  <div 
+                    className="dropdown-content menu p-2 shadow-xl bg-white rounded-box w-52 border border-gray-300"
+                    style={{
+                      position: 'absolute',
+                      zIndex: 999999,
+                      backgroundColor: '#ffffff',
+                      color: '#000000',
+                      right: 0,
+                      top: '100%',
+                      marginTop: '4px',
+                      pointerEvents: 'auto'
+                    }}
                     role="menu"
                     aria-label={`Menu d'actions pour ${document.name}`}
                   >
-                    <li role="none">
-                      <button onClick={handleDownloadClick} className="flex items-center gap-2 text-left w-full" role="menuitem">
-                        <Download className="w-4 h-4" />
-                        Télécharger
-                      </button>
-                    </li>
-                    <li role="none">
-                      <button onClick={handleShareClick} className="flex items-center gap-2 text-left w-full" role="menuitem">
-                        <Share2 className="w-4 h-4" />
-                        Partager
-                      </button>
-                    </li>
+                    <button 
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDownloadClick(e);
+                      }}
+                      className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded" 
+                      role="menuitem" 
+                      style={{ 
+                        color: '#000000',
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <Download className="w-4 h-4" style={{ color: '#000000' }} />
+                      Télécharger
+                    </button>
+                    <button 
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleShareClick(e);
+                      }}
+                      className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded" 
+                      role="menuitem" 
+                      style={{ 
+                        color: '#000000',
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <Share2 className="w-4 h-4" style={{ color: '#000000' }} />
+                      Partager
+                    </button>
                     {(onArchive || onUnarchive) && (
-                      <li role="none">
-                        <button onClick={handleArchiveClick} className="flex items-center gap-2 text-left w-full" role="menuitem">
-                          {document.archived ? (
-                            <>
-                              <ArchiveRestore className="w-4 h-4" />
-                              Désarchiver
-                            </>
-                          ) : (
-                            <>
-                              <Archive className="w-4 h-4" />
-                              Archiver
-                            </>
-                          )}
-                        </button>
-                      </li>
-                    )}
-                    <div className="divider my-1"></div>
-                    <li role="none">
-                      <button onClick={handleDeleteClick} className="flex items-center gap-2 text-left w-full text-error hover:bg-error/20" role="menuitem">
-                        <Trash2 className="w-4 h-4" />
-                        Supprimer
+                      <button 
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleArchiveClick(e);
+                        }}
+                        className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded" 
+                        role="menuitem" 
+                        style={{ 
+                          color: '#000000',
+                          pointerEvents: 'auto'
+                        }}
+                      >
+                        {document.archived ? (
+                          <ArchiveRestore className="w-4 h-4" style={{ color: '#000000' }} />
+                        ) : (
+                          <Archive className="w-4 h-4" style={{ color: '#000000' }} />
+                        )}
+                        {document.archived ? 'Désarchiver' : 'Archiver'}
                       </button>
-                    </li>
-                  </ul>
+                    )}
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button 
+                      onClick={handleDeleteClick} 
+                      className="flex items-center gap-2 text-left w-full p-2 hover:bg-red-50 rounded" 
+                      role="menuitem" 
+                      style={{ color: '#dc2626' }}
+                    >
+                      <Trash2 className="w-4 h-4" style={{ color: '#dc2626' }} />
+                      Supprimer
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -283,7 +417,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 
   return (
     <article 
-      className="group document-card-enhanced card shadow-sm hover:shadow-xl transition-all duration-300"
+      className={`group document-card-enhanced card shadow-sm hover:shadow-xl transition-shadow duration-300 ${showDropdown ? 'dropdown-active' : ''}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       aria-label={`Document ${document.name}, ${formatFileSize(document.size)}, ${document.category}`}
@@ -316,13 +450,6 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
               aria-pressed={document.favorite}
             >
               <Star className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${document.favorite ? 'fill-current' : ''}`} aria-hidden="true" />
-            </button>
-            <button 
-              className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-base-content/60"
-              aria-label={`Plus d'options pour ${document.name}`}
-              title="Plus d'options"
-            >
-              <MoreHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -368,7 +495,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                   ref={dropdownRef}
                   className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-base-content hover:bg-base-content/10"
                   onClick={toggleDropdown}
-                  onKeyDown={(e) => handleKeyDown(e, toggleDropdown)}
+                  onKeyDown={(e) => handleKeyDown(e, toggleDropdownKeyboard)}
                   aria-label={`Actions pour ${document.name}`}
                   aria-expanded={showDropdown}
                   aria-haspopup="menu"
@@ -377,79 +504,118 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                   <MoreVertical className="w-4 h-4" aria-hidden="true" />
                 </button>
                 {showDropdown && (
-                  <ul 
-                    className="dropdown-content z-[9999] menu p-2 shadow bg-base-100 rounded-box w-52 border border-base-300"
+                  <div 
+                    className="dropdown-content menu p-2 shadow-xl bg-white rounded-box w-52 border border-gray-300"
+                    style={{
+                      position: 'absolute',
+                      zIndex: 99999,
+                      backgroundColor: '#ffffff',
+                      color: '#000000',
+                      right: 0,
+                      bottom: '100%',
+                      marginBottom: '4px',
+                      pointerEvents: 'auto'
+                    }}
                     role="menu"
                     aria-label={`Menu d'actions pour ${document.name}`}
                   >
-                    <li role="none">
-                      <button
-                        onClick={handleViewClick}
-                        className="flex items-center gap-2 text-left w-full"
-                        role="menuitem"
-                      >
-                        <Eye className="w-4 h-4" aria-hidden="true" />
-                        Voir le document
-                      </button>
-                    </li>
-                    <li role="none">
-                      <button
-                        onClick={handleFavoriteClick}
-                        className="flex items-center gap-2 text-left w-full"
-                        role="menuitem"
-                      >
-                        <Star className={`w-4 h-4 ${document.favorite ? 'fill-current text-warning' : ''}`} aria-hidden="true" />
-                        {document.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                      </button>
-                    </li>
-                    <li role="none">
-                      <button 
-                        onClick={handleDownloadClick}
-                        className="flex items-center gap-2 text-left w-full"
-                        role="menuitem"
-                      >
-                        <Download className="w-4 h-4" aria-hidden="true" />
-                        Télécharger
-                      </button>
-                    </li>
-                    <li role="none">
-                      <button 
-                        onClick={handleShareClick}
-                        className="flex items-center gap-2 text-left w-full"
-                        role="menuitem"
-                      >
-                        <Share2 className="w-4 h-4" aria-hidden="true" />
-                        Partager
-                      </button>
-                    </li>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleViewClick();
+                      }}
+                      className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded"
+                      role="menuitem"
+                      style={{ 
+                        color: '#000000',
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <Eye className="w-4 h-4" aria-hidden="true" style={{ color: '#000000' }} />
+                      Voir le document
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleFavoriteClick();
+                      }}
+                      className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded"
+                      role="menuitem"
+                      style={{ 
+                        color: '#000000',
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <Star className={`w-4 h-4 ${document.favorite ? 'fill-current' : ''}`} aria-hidden="true" style={{ color: document.favorite ? '#f59e0b' : '#000000' }} />
+                      {document.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    </button>
+                    <button 
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDownloadClick(e);
+                      }}
+                      className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded"
+                      role="menuitem"
+                      style={{ 
+                        color: '#000000',
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <Download className="w-4 h-4" aria-hidden="true" style={{ color: '#000000' }} />
+                      Télécharger
+                    </button>
+                    <button 
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleShareClick(e);
+                      }}
+                      className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded"
+                      role="menuitem"
+                      style={{ 
+                        color: '#000000',
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <Share2 className="w-4 h-4" aria-hidden="true" style={{ color: '#000000' }} />
+                      Partager
+                    </button>
                     {(onArchive || onUnarchive) && (
-                      <li role="none">
-                        <button
-                          onClick={handleArchiveClick}
-                          className="flex items-center gap-2 text-left w-full"
-                          role="menuitem"
-                        >
-                          {document.archived ? (
-                            <ArchiveRestore className="w-4 h-4" aria-hidden="true" />
-                          ) : (
-                            <Archive className="w-4 h-4" aria-hidden="true" />
-                          )}
-                          {document.archived ? 'Désarchiver' : 'Archiver'}
-                        </button>
-                      </li>
-                    )}
-                    <div className="divider my-1"></div>
-                    <li role="none">
                       <button
-                        onClick={handleDeleteClick}
-                        className="flex items-center gap-2 text-left w-full text-error hover:bg-error/20"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleArchiveClick(e);
+                        }}
+                        className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded"
                         role="menuitem"
+                        style={{ 
+                          color: '#000000',
+                          pointerEvents: 'auto'
+                        }}
                       >
-                        <Trash2 className="w-4 h-4" aria-hidden="true" />
-                        Supprimer
+                        {document.archived ? (
+                          <ArchiveRestore className="w-4 h-4" aria-hidden="true" style={{ color: '#000000' }} />
+                        ) : (
+                          <Archive className="w-4 h-4" aria-hidden="true" style={{ color: '#000000' }} />
+                        )}
+                        {document.archived ? 'Désarchiver' : 'Archiver'}
                       </button>
-                    </li>
-                  </ul>
+                    )}
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button
+                      onClick={handleDeleteClick}
+                      className="flex items-center gap-2 text-left w-full p-2 hover:bg-red-50 rounded"
+                      role="menuitem"
+                      style={{ color: '#dc2626' }}
+                    >
+                      <Trash2 className="w-4 h-4" aria-hidden="true" style={{ color: '#dc2626' }} />
+                      Supprimer
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

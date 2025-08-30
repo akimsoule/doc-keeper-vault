@@ -66,7 +66,6 @@ export const DashboardPage = () => {
     documents,
     loading: documentsLoading,
     error: documentsError,
-    total,
     page: currentPage,
     totalPages,
     updateDocument,
