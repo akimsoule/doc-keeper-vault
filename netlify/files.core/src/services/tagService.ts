@@ -2,20 +2,15 @@ import prisma from './database';
 import { LogService } from './logService';
 
 export interface TagStats {
-  tag: string;
+  name: string;
   count: number;
-  documents: {
-    id: string;
-    name: string;
-    category: string;
-    type: string;
-  }[];
+  color?: string;
 }
 
 export interface TagAnalytics {
   totalTags: number;
-  mostUsedTags: { tag: string; count: number }[];
-  tagsByCategory: { category: string; tags: string[] }[];
+  mostUsedTags: { name: string; count: number }[];
+  tagsByType: { type: string; tags: string[] }[];
   recentTags: string[];
 }
 
@@ -27,283 +22,217 @@ export class TagService {
   }
 
   /**
-   * Obtient tous les tags uniques utilisés dans les documents
+   * Récupère tous les tags uniques avec leurs statistiques
    */
-  async getAllTags(): Promise<string[]> {
+  async getAllTags(): Promise<TagStats[]> {
+    // Récupérer tous les documents avec leurs tags
     const documents = await prisma.document.findMany({
-      select: { tags: true },
-      where: {
-        tags: {
-          not: ''
-        }
+      select: {
+        tags: true,
+        archived: true
       }
     });
 
-    const allTags = new Set<string>();
+    // Compter les occurrences de chaque tag
+    const tagCounts = new Map<string, { total: number; archived: number }>();
     
     documents.forEach(doc => {
-      if (doc.tags) {
-        const tags = doc.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-        tags.forEach(tag => allTags.add(tag));
-      }
-    });
-
-    return Array.from(allTags).sort();
-  }
-
-  /**
-   * Obtient les statistiques pour chaque tag
-   */
-  async getTagStats(): Promise<TagStats[]> {
-    const documents = await prisma.document.findMany({
-      select: { 
-        id: true, 
-        name: true, 
-        category: true, 
-        type: true, 
-        tags: true 
-      },
-      where: {
-        tags: {
-          not: ''
-        }
-      }
-    });
-
-    const tagMap = new Map<string, TagStats>();
-
-    documents.forEach(doc => {
-      if (doc.tags) {
-        const tags = doc.tags.split(',').map(tag => tag.trim()).filter(Boolean);
+      if (doc.tags && doc.tags.trim()) {
+        const tags = doc.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
         tags.forEach(tag => {
-          if (!tagMap.has(tag)) {
-            tagMap.set(tag, {
-              tag,
-              count: 0,
-              documents: []
-            });
+          if (!tagCounts.has(tag)) {
+            tagCounts.set(tag, { total: 0, archived: 0 });
           }
-          
-          const tagStat = tagMap.get(tag)!;
-          tagStat.count++;
-          tagStat.documents.push({
-            id: doc.id,
-            name: doc.name,
-            category: doc.category,
-            type: doc.type
-          });
+          const current = tagCounts.get(tag)!;
+          current.total++;
+          if (doc.archived) {
+            current.archived++;
+          }
         });
       }
     });
 
-    return Array.from(tagMap.values()).sort((a, b) => b.count - a.count);
+    // Convertir en tableau avec couleurs
+    const colorPalette = [
+      '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+      '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
+    ];
+
+    return Array.from(tagCounts.entries())
+      .map(([name, counts], index) => ({
+        name,
+        count: counts.total,
+        color: this.getTagColor(name, colorPalette, index)
+      }))
+      .sort((a, b) => b.count - a.count); // Trier par popularité
   }
 
   /**
-   * Recherche des documents par tags
+   * Récupère les tags les plus populaires
    */
-  async searchDocumentsByTags(tags: string[], operator: 'AND' | 'OR' = 'OR') {
-    if (tags.length === 0) {
-      return [];
-    }
-
-    const documents = await prisma.document.findMany({
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return documents.filter(doc => {
-      if (!doc.tags) return false;
-      
-      const docTags = doc.tags.split(',').map(tag => tag.trim().toLowerCase());
-      const searchTags = tags.map(tag => tag.trim().toLowerCase());
-
-      if (operator === 'AND') {
-        return searchTags.every(searchTag => 
-          docTags.some(docTag => docTag.includes(searchTag))
-        );
-      } else {
-        return searchTags.some(searchTag => 
-          docTags.some(docTag => docTag.includes(searchTag))
-        );
-      }
-    });
+  async getPopularTags(limit = 10): Promise<TagStats[]> {
+    const allTags = await this.getAllTags();
+    return allTags.slice(0, limit);
   }
 
   /**
-   * Obtient les tags les plus populaires
+   * Cherche des tags par nom
    */
-  async getPopularTags(limit: number = 10): Promise<{ tag: string; count: number }[]> {
-    const tagStats = await this.getTagStats();
-    return tagStats.slice(0, limit).map(stat => ({
-      tag: stat.tag,
-      count: stat.count
-    }));
+  async searchTags(query: string): Promise<TagStats[]> {
+    const allTags = await this.getAllTags();
+    return allTags.filter(tag => 
+      tag.name.toLowerCase().includes(query.toLowerCase())
+    );
   }
 
   /**
-   * Obtient les tags associés à une catégorie
+   * Ajoute ou met à jour les tags d'un document
    */
-  async getTagsByCategory(category: string): Promise<string[]> {
-    const documents = await prisma.document.findMany({
-      where: { 
-        category,
-        tags: {
-          not: ''
-        }
-      },
-      select: { tags: true }
+  async updateDocumentTags(documentId: string, tags: string[]): Promise<void> {
+    const tagsString = tags
+      .map(tag => tag.trim())
+      .filter(tag => tag)
+      .join(',');
+
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { tags: tagsString }
     });
 
-    const tags = new Set<string>();
-    
-    documents.forEach(doc => {
-      if (doc.tags) {
-        const docTags = doc.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-        docTags.forEach(tag => tags.add(tag));
-      }
+    await this.logService.log({
+      action: 'DOCUMENT_UPDATE',
+      entity: 'DOCUMENT',
+      entityId: documentId,
+      details: `Tags mis à jour: ${tagsString}`,
+      userId: ''
     });
-
-    return Array.from(tags).sort();
   }
 
   /**
    * Ajoute un tag à un document
    */
-  async addTagToDocument(documentId: string, tag: string, userId: string) {
+  async addTagToDocument(documentId: string, newTag: string): Promise<void> {
     const document = await prisma.document.findUnique({
       where: { id: documentId },
-      select: { tags: true, name: true }
+      select: { tags: true }
     });
 
     if (!document) {
-      throw new Error('Document non trouvé');
+      throw new Error('Document introuvable');
     }
 
-    const currentTags = document.tags ? document.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-    const normalizedTag = tag.trim();
-    
-    if (!currentTags.includes(normalizedTag)) {
-      currentTags.push(normalizedTag);
-      
-      const updatedDocument = await prisma.document.update({
-        where: { id: documentId },
-        data: {
-          tags: currentTags.join(','),
-          modifiedAt: new Date(),
-        },
-        include: {
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      });
+    const existingTags = document.tags 
+      ? document.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      : [];
 
-      await this.logService.log({
-        action: 'TAG_CREATE',
-        entity: 'TAG',
-        entityId: documentId,
-        userId,
-        documentId,
-        details: `Tag "${normalizedTag}" ajouté au document: ${document.name}`,
-      });
-
-      return updatedDocument;
+    if (!existingTags.includes(newTag.trim())) {
+      existingTags.push(newTag.trim());
+      await this.updateDocumentTags(documentId, existingTags);
     }
-
-    throw new Error('Ce tag existe déjà sur ce document');
   }
 
   /**
    * Supprime un tag d'un document
    */
-  async removeTagFromDocument(documentId: string, tag: string, userId: string) {
+  async removeTagFromDocument(documentId: string, tagToRemove: string): Promise<void> {
     const document = await prisma.document.findUnique({
       where: { id: documentId },
-      select: { tags: true, name: true }
+      select: { tags: true }
     });
 
     if (!document) {
-      throw new Error('Document non trouvé');
+      throw new Error('Document introuvable');
     }
 
-    const currentTags = document.tags ? document.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-    const normalizedTag = tag.trim();
-    const updatedTags = currentTags.filter(t => t !== normalizedTag);
+    const existingTags = document.tags 
+      ? document.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      : [];
 
-    if (currentTags.length !== updatedTags.length) {
-      const updatedDocument = await prisma.document.update({
-        where: { id: documentId },
-        data: {
-          tags: updatedTags.join(','),
-          modifiedAt: new Date(),
-        },
-        include: {
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      });
-
-      await this.logService.log({
-        action: 'TAG_DELETE',
-        entity: 'TAG',
-        entityId: documentId,
-        userId,
-        documentId,
-        details: `Tag "${normalizedTag}" supprimé du document: ${document.name}`,
-      });
-
-      return updatedDocument;
-    }
-
-    throw new Error('Ce tag n\'existe pas sur ce document');
+    const updatedTags = existingTags.filter(tag => tag !== tagToRemove.trim());
+    await this.updateDocumentTags(documentId, updatedTags);
   }
 
   /**
-   * Remplace un tag par un autre dans tous les documents
+   * Obtient les statistiques des tags
    */
-  async replaceTag(oldTag: string, newTag: string, userId: string) {
+  async getTagAnalytics(): Promise<TagAnalytics> {
+    const allTags = await this.getAllTags();
+    
+    // Grouper par type de document
+    const documents = await prisma.document.findMany({
+      select: {
+        type: true,
+        tags: true,
+        createdAt: true
+      }
+    });
+
+    const tagsByType = new Map<string, Set<string>>();
+    const recentTags = new Set<string>();
+
+    // Calculer les tags récents (derniers 30 jours)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    documents.forEach(doc => {
+      if (doc.tags && doc.tags.trim()) {
+        const tags = doc.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+        
+        // Grouper par type
+        if (!tagsByType.has(doc.type)) {
+          tagsByType.set(doc.type, new Set());
+        }
+        tags.forEach(tag => {
+          tagsByType.get(doc.type)!.add(tag);
+          
+          // Tags récents
+          if (doc.createdAt >= thirtyDaysAgo) {
+            recentTags.add(tag);
+          }
+        });
+      }
+    });
+
+    return {
+      totalTags: allTags.length,
+      mostUsedTags: allTags.slice(0, 10).map(tag => ({
+        name: tag.name,
+        count: tag.count
+      })),
+      tagsByType: Array.from(tagsByType.entries()).map(([type, tags]) => ({
+        type,
+        tags: Array.from(tags)
+      })),
+      recentTags: Array.from(recentTags).slice(0, 20)
+    };
+  }
+
+  /**
+   * Renomme un tag dans tous les documents
+   */
+  async renameTag(oldTag: string, newTag: string): Promise<number> {
     const documents = await prisma.document.findMany({
       where: {
         tags: {
-          contains: oldTag,
-          mode: 'insensitive' as const
+          contains: oldTag
         }
       },
-      select: { id: true, tags: true, name: true }
+      select: {
+        id: true,
+        tags: true
+      }
     });
 
     let updatedCount = 0;
-    
+
     for (const doc of documents) {
       if (doc.tags) {
-        const tags = doc.tags.split(',').map(t => t.trim()).filter(Boolean);
-        const updatedTags = tags.map(tag => tag === oldTag.trim() ? newTag.trim() : tag);
+        const tags = doc.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+        const tagIndex = tags.indexOf(oldTag.trim());
         
-        if (tags.join(',') !== updatedTags.join(',')) {
-          await prisma.document.update({
-            where: { id: doc.id },
-            data: {
-              tags: updatedTags.join(','),
-              modifiedAt: new Date(),
-            }
-          });
+        if (tagIndex !== -1) {
+          tags[tagIndex] = newTag.trim();
+          await this.updateDocumentTags(doc.id, tags);
           updatedCount++;
         }
       }
@@ -312,108 +241,77 @@ export class TagService {
     await this.logService.log({
       action: 'TAG_UPDATE',
       entity: 'TAG',
-      entityId: 'bulk-update',
-      userId,
-      details: `Tag "${oldTag}" remplacé par "${newTag}" dans ${updatedCount} documents`,
+      entityId: oldTag,
+      details: `Tag renommé de "${oldTag}" vers "${newTag}" (${updatedCount} documents affectés)`,
+      userId: ''
     });
 
-    return {
-      updatedCount,
-      oldTag,
-      newTag,
-    };
+    return updatedCount;
   }
 
   /**
-   * Nettoie les tags orphelins et dupliqués
+   * Supprime un tag de tous les documents
    */
-  async cleanupTags(userId: string) {
+  async deleteTag(tagToDelete: string): Promise<number> {
     const documents = await prisma.document.findMany({
       where: {
         tags: {
-          not: ''
+          contains: tagToDelete
         }
       },
-      select: { id: true, tags: true }
+      select: {
+        id: true,
+        tags: true
+      }
     });
 
-    let cleanedCount = 0;
+    let updatedCount = 0;
 
     for (const doc of documents) {
       if (doc.tags) {
-        const originalTags = doc.tags.split(',').map(t => t.trim()).filter(Boolean);
-        const cleanedTags = [...new Set(originalTags.filter(tag => tag.length > 0))];
+        const tags = doc.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+        const filteredTags = tags.filter(tag => tag !== tagToDelete.trim());
         
-        if (originalTags.length !== cleanedTags.length || originalTags.join(',') !== cleanedTags.join(',')) {
-          await prisma.document.update({
-            where: { id: doc.id },
-            data: {
-              tags: cleanedTags.join(','),
-              modifiedAt: new Date(),
-            }
-          });
-          cleanedCount++;
+        if (filteredTags.length !== tags.length) {
+          await this.updateDocumentTags(doc.id, filteredTags);
+          updatedCount++;
         }
       }
     }
 
     await this.logService.log({
-      action: 'TAG_UPDATE',
+      action: 'TAG_DELETE',
       entity: 'TAG',
-      entityId: 'cleanup',
-      userId,
-      details: `Nettoyage des tags: ${cleanedCount} documents traités`,
+      entityId: tagToDelete,
+      details: `Tag supprimé: "${tagToDelete}" (${updatedCount} documents affectés)`,
+      userId: ''
     });
 
-    return { cleanedCount };
+    return updatedCount;
   }
 
   /**
-   * Obtient des analytics détaillées sur les tags
+   * Obtient une couleur pour un tag
    */
-  async getTagAnalytics(): Promise<TagAnalytics> {
-    const tagStats = await this.getTagStats();
-    const categories = await prisma.document.groupBy({
-      by: ['category'],
-      _count: { category: true }
-    });
-
-    const tagsByCategory = await Promise.all(
-      categories.map(async (cat) => ({
-        category: cat.category,
-        tags: await this.getTagsByCategory(cat.category)
-      }))
-    );
-
-    // Tags récents (basés sur les documents récents)
-    const recentDocuments = await prisma.document.findMany({
-      where: {
-        tags: { not: '' },
-        createdAt: {
-          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 derniers jours
-        }
-      },
-      select: { tags: true },
-      orderBy: { createdAt: 'desc' },
-      take: 50
-    });
-
-    const recentTagsSet = new Set<string>();
-    recentDocuments.forEach(doc => {
-      if (doc.tags) {
-        const tags = doc.tags.split(',').map(t => t.trim()).filter(Boolean);
-        tags.forEach(tag => recentTagsSet.add(tag));
-      }
-    });
-
-    return {
-      totalTags: tagStats.length,
-      mostUsedTags: tagStats.slice(0, 10).map(stat => ({
-        tag: stat.tag,
-        count: stat.count
-      })),
-      tagsByCategory,
-      recentTags: Array.from(recentTagsSet).slice(0, 20)
+  private getTagColor(tagName: string, colorPalette: string[], index: number): string {
+    // Tags spéciaux avec couleurs fixes
+    const specialColors: Record<string, string> = {
+      'Archive': '#6B7280',
+      'Favoris': '#F59E0B',
+      'documents': '#3B82F6',
+      'images': '#10B981',
+      'vidéos': '#EF4444',
+      'audio': '#8B5CF6',
+      'synced': '#06B6D4',
+      'nouveau': '#84CC16'
     };
+
+    if (specialColors[tagName]) {
+      return specialColors[tagName];
+    }
+
+    return colorPalette[index % colorPalette.length];
   }
 }
+
+export default TagService;

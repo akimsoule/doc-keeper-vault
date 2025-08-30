@@ -24,7 +24,6 @@ model Document {
   id          String     @id @default(uuid())
   name        String
   type        String
-  category    String
   size        Int
   description String?
   tags        String     @default("") // Tags séparés par des virgules

@@ -9,7 +9,6 @@ import crypto from "crypto";
 export interface CreateDocumentData {
   name: string;
   type: string;
-  category: string;
   description?: string;
   tags?: string; // Tags séparés par des virgules
   ownerId?: string;
@@ -26,7 +25,6 @@ export interface CreateDocumentData {
 export interface UpdateDocumentData {
   name?: string;
   type?: string;
-  category?: string;
   description?: string;
   tags?: string; // Tags séparés par des virgules
   isFavorite?: boolean;
@@ -137,24 +135,33 @@ export class DocumentService {
     return 'document';
   }
 
-  /**
-   * Détermine la catégorie d'un document basée sur son type
+    /**
+   * Ajoute un tag basé sur le type de document
    * @param type - Type de document détecté
-   * @returns Catégorie du document
+   * @param existingTags - Tags existants
+   * @returns Tags mis à jour
    */
-  private getCategoryFromType(type: string): string {
-    const categoryMapping: Record<string, string> = {
-      'image': 'images',
-      'video': 'videos',
-      'audio': 'audio',
+  private addTagFromType(type: string, existingTags: string = ''): string {
+    const typeTagMapping: Record<string, string> = {
       'document': 'documents',
-      'spreadsheet': 'tableaux',
-      'presentation': 'presentations',
+      'spreadsheet': 'documents',
+      'presentation': 'documents',
+      'image': 'images',
+      'video': 'vidéos',
+      'audio': 'audio',
       'archive': 'archives',
-      'code': 'development',
+      'code': 'code',
+      'other': 'autres'
     };
     
-    return categoryMapping[type] || 'autres';
+    const typeTag = typeTagMapping[type] || 'autres';
+    const tags = existingTags ? existingTags.split(',').map(t => t.trim()) : [];
+    
+    if (!tags.includes(typeTag)) {
+      tags.push(typeTag);
+    }
+    
+    return tags.join(',');
   }
 
   async createDocument(data: CreateDocumentData) {
@@ -216,16 +223,9 @@ export class DocumentService {
       data: {
         name: data.name,
         type: data.type,
-        category: data.category,
         size: fileSize,
         description: data.description,
-        tags: data.tags
-          ? (Array.isArray(data.tags) ? data.tags.join(",") : data.tags)
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean)
-              .join(",")
-          : "",
+        tags: this.addTagFromType(data.type, data.tags || ""),
         fileId,
         hash, // Ajout du hash
         ownerId: ownerId,
@@ -316,7 +316,6 @@ export class DocumentService {
     take = 20,
     filters?: {
       type?: string;
-      category?: string;
       ownerId?: string;
       tags?: string[];
       search?: string;
@@ -326,7 +325,6 @@ export class DocumentService {
     const where: Record<string, unknown> = {};
 
     if (filters?.type) where.type = filters.type;
-    if (filters?.category) where.category = filters.category;
     if (filters?.ownerId) where.ownerId = filters.ownerId;
     if (filters?.archived !== undefined) where.archived = filters.archived;
     if (filters?.tags && filters.tags.length > 0) {
@@ -358,7 +356,6 @@ export class DocumentService {
 
   async getDocumentCount(filters?: {
     type?: string;
-    category?: string;
     ownerId?: string;
     tags?: string[];
     search?: string;
@@ -367,7 +364,6 @@ export class DocumentService {
     const where: Record<string, unknown> = {};
 
     if (filters?.type) where.type = filters.type;
-    if (filters?.category) where.category = filters.category;
     if (filters?.ownerId) where.ownerId = filters.ownerId;
     if (filters?.archived !== undefined) where.archived = filters.archived;
     if (filters?.tags && filters.tags.length > 0) {
@@ -617,7 +613,7 @@ export class DocumentService {
 
   async getDocumentStats() {
     const stats = await prisma.document.groupBy({
-      by: ["type", "category"],
+      by: ["type"],
       _count: {
         id: true,
       },
@@ -634,7 +630,7 @@ export class DocumentService {
     return {
       totalDocuments,
       totalSize: totalSize._sum.size || 0,
-      byTypeAndCategory: stats,
+      byType: stats,
     };
   }
 
@@ -649,14 +645,20 @@ export class DocumentService {
     const megaFiles = await this.megaStorageService.getAllFilesWithContent(folderId);
     console.log(`🔍 ${megaFiles.length} fichiers trouvés sur MEGA.`);
 
-    const allDocuments = await prisma.document.findMany({ select: { id: true, hash: true, name: true } });
+    const allDocuments = await prisma.document.findMany({ 
+      select: { 
+        id: true, 
+        hash: true, 
+        name: true, 
+        tags: true 
+      } 
+    });
     console.log(`📄 ${allDocuments.length} documents trouvés dans la base de données.`);
     
     const newDocuments: Array<{
       id: string;
       name: string;
       type: string;
-      category: string;
       size: number;
       description?: string | null;
       tags: string;
@@ -664,6 +666,8 @@ export class DocumentService {
       hash: string;
       ownerId: string;
       isFavorite: boolean;
+      archived: boolean;
+      archivedAt: Date | null;
       createdAt: Date;
       modifiedAt: Date;
     }> = [];
@@ -671,7 +675,6 @@ export class DocumentService {
       id: string;
       name: string;
       type: string;
-      category: string;
       size: number;
       description?: string | null;
       tags: string;
@@ -679,6 +682,8 @@ export class DocumentService {
       hash: string;
       ownerId: string;
       isFavorite: boolean;
+      archived: boolean;
+      archivedAt: Date | null;
       createdAt: Date;
       modifiedAt: Date;
     }> = [];
@@ -695,14 +700,13 @@ export class DocumentService {
         
         // Mise à jour du document existant avec détection de type
         const detectedType = this.getDocumentTypeFromFile(megaFile.name, megaFile.mimeType);
-        const category = this.getCategoryFromType(detectedType);
         
         const updatedDocument = await prisma.document.update({
           where: { id: existingDocument.id },
           data: {
             name: megaFile.name, // Mettre à jour le nom si il a changé
             type: detectedType, // Mettre à jour le type
-            category: category, // Mettre à jour la catégorie
+            tags: this.addTagFromType(detectedType, existingDocument.tags), // Ajouter les tags basés sur le type
             size: megaFile.size, // Mettre à jour la taille
             fileId: megaFile.fileId, // Mettre à jour le fileId MEGA
             modifiedAt: new Date(),
@@ -723,16 +727,14 @@ export class DocumentService {
         
         // Création d'un nouveau document avec détection de type appropriée
         const detectedType = this.getDocumentTypeFromFile(megaFile.name, megaFile.mimeType);
-        const category = this.getCategoryFromType(detectedType);
         
         const document = await prisma.document.create({
           data: {
             name: megaFile.name,
             type: detectedType,
-            category: category,
             size: megaFile.size, // Utiliser la taille du buffer retournée par MEGA
             description: 'Document synchronisé depuis MEGA',
-            tags: 'synced',
+            tags: this.addTagFromType(detectedType, 'synced'),
             fileId: megaFile.fileId,
             hash: hash,
             ownerId: defaultOwnerId,

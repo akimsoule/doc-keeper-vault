@@ -17,7 +17,6 @@ interface BackendDocument {
   name: string;
   type: string;
   size: number;
-  category: string;
   tags: string;
   ownerId: string;
   isFavorite: boolean;
@@ -36,7 +35,6 @@ const adaptBackendDocument = (backendDoc: BackendDocument): Document => ({
   name: backendDoc.name,
   type: backendDoc.type,
   size: backendDoc.size,
-  category: backendDoc.category,
   tags: backendDoc.tags
     ? backendDoc.tags.split(",").filter((tag) => tag.trim())
     : [],
@@ -69,13 +67,6 @@ interface AdvancedSearchResult {
   results: BackendDocument[];
   total: number;
   searchTime: number;
-}
-
-interface Tag {
-  id: string;
-  name: string;
-  count: number;
-  color?: string;
 }
 
 interface TagStats {
@@ -635,28 +626,25 @@ class ApiService {
 
   // === TAGS ===
 
-  async getTags() {
-    // Créer une clé de cache
-    const cacheKey = cacheService.generateKey('getTags');
-    
-    // Vérifier le cache
-    const cached = cacheService.get<Tag[]>(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
+  async getTags(): Promise<Array<{ name: string; count: number; color?: string }>> {
+    const cacheKey = 'tags-all';
+    const cached = cacheService.get<Array<{ name: string; count: number; color?: string }>>(cacheKey);
+    if (cached) return cached;
 
-    const response = await fetch(`${this.baseUrl}/tags`, {
-      method: "GET",
-      headers: this.getHeaders(),
+    const response = await fetch('/.netlify/functions/tags', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
-    const result = await this.handleResponse<Tag[]>(response);
-    
-    // Mettre en cache le résultat
-    cacheService.set(cacheKey, result, cacheService.TTL.tags);
-    
-    return result;
+    if (!response.ok) {
+      throw new Error(`Erreur lors de la récupération des tags: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    cacheService.set(cacheKey, data, 5 * 60 * 1000); // Cache 5 minutes
+    return data;
   }
 
   async getTagStats(tagName: string) {
@@ -843,6 +831,10 @@ class ApiService {
   startCacheAutoCleanup(intervalMs?: number): () => void {
     return cacheService.startAutoCleanup(intervalMs);
   }
+
+  /**
+   * Gestion des tags
+   */
 }
 
 // Fonction pour générer des activités simulées (fallback)

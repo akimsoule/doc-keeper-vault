@@ -3,7 +3,6 @@ export interface Document {
   name: string;
   type: string;
   size: number;
-  category: string;
   tags: string[];
   uploadDate: Date;
   lastModified: Date;
@@ -15,16 +14,16 @@ export interface Document {
   archivedDate?: Date;
 }
 
-export interface Category {
+export interface Tag {
   id: string;
   name: string;
   color: string;
-  icon: string;
+  icon?: string;
   count: number;
 }
 
 export type ViewMode = 'grid' | 'list';
-export type SortBy = 'name' | 'date' | 'size' | 'category';
+export type SortBy = 'name' | 'date' | 'size' | 'tags';
 export type SortOrder = 'asc' | 'desc';
 
 export interface Activity {
