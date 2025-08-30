@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Files, BarChart3 } from 'lucide-react';
+import { Files, BarChart3, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryFilter } from '../components/CategoryFilter';
@@ -7,20 +7,29 @@ import { DocumentCard } from '../components/DocumentCard';
 import { UploadArea } from '../components/UploadArea';
 import { ViewControls } from '../components/ViewControls';
 import { DocumentPreviewModal } from '../components/DocumentPreviewModal';
-import { categories } from '../data/mockData';
+import { ErrorMessage } from '../components/ErrorBoundary';
+import { LoadingSkeleton } from '../components/Loading';
+import { KeyboardShortcutsHelp } from '../components/SwipeGesture';
 import { useDocuments } from '../hooks/useDocuments';
 import { useToast } from '../hooks/useToast';
 import { useViewMode } from '../hooks/useViewMode';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { Category } from '../types';
 import apiService from '../services/apiService';
 
 export const DashboardPage = () => {
   // Hook pour gérer le mode de vue avec localStorage
   const { viewMode, setViewMode } = useViewMode();
   
+  // Hook pour gérer les erreurs
+  const { handleError } = useErrorHandler();
+  
   // État de l'application
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{
     show: boolean;
     documentId: string;
@@ -68,21 +77,90 @@ export const DashboardPage = () => {
     addToast({ message, type });
   }, [addToast]);
 
-  // Documents filtrés
-  const filteredDocuments = useMemo(() => {
+  // Fonctions helper pour les catégories
+  const getCategoryColor = useCallback((category: string): string => {
+    const colors: Record<string, string> = {
+      images: '#10b981',
+      documents: '#3b82f6', 
+      pdf: '#ef4444',
+      tableaux: '#f59e0b',
+      videos: '#8b5cf6',
+      autres: '#6b7280',
+    };
+    return colors[category] || '#6b7280';
+  }, []);
+
+  const getCategoryIcon = useCallback((category: string): string => {
+    const icons: Record<string, string> = {
+      images: '🖼️',
+      documents: '📄',
+      pdf: '📕',
+      tableaux: '📊',
+      videos: '🎥',
+      autres: '📁',
+    };
+    return icons[category] || '📁';
+  }, []);
+
+  // Documents filtrés et catégories dynamiques
+  const { filteredDocuments, categories } = useMemo(() => {
     // Protection contre undefined/null
     if (!Array.isArray(documents)) {
-      return [];
+      return { filteredDocuments: [], categories: [] };
     }
     
-    return documents.filter((doc) => {
+    // Calculer les catégories à partir des documents
+    const categoryMap = new Map<string, number>();
+    documents.forEach(doc => {
+      const category = doc.category || 'autres';
+      categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+    });
+
+    const dynamicCategories: Category[] = Array.from(categoryMap.entries()).map(([name, count]) => ({
+      id: name,
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      color: getCategoryColor(name),
+      icon: getCategoryIcon(name),
+      count,
+    }));
+
+    // Filtrer les documents
+    const filtered = documents.filter((doc) => {
       const matchesSearch = searchTerm === '' || 
         doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (doc.tags && doc.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
       const matchesCategory = selectedCategory === '' || doc.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [documents, searchTerm, selectedCategory]);
+    
+    return { filteredDocuments: filtered, categories: dynamicCategories };
+  }, [documents, searchTerm, selectedCategory, getCategoryColor, getCategoryIcon]);
+
+  // Configuration des raccourcis clavier
+  const keyboardShortcuts = useMemo(() => ({
+    'ctrl+k': () => {
+      // Focus sur la barre de recherche
+      const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.select();
+      }
+    },
+    'ctrl+f': () => setShowFilters(!showFilters),
+    'ctrl+g': () => setViewMode(viewMode === 'grid' ? 'list' : 'grid'),
+    'ctrl+r': () => loadDocuments(),
+    'escape': () => {
+      setSearchTerm('');
+      setSelectedCategory('');
+      setShowFilters(false);
+      setShowKeyboardHelp(false);
+    },
+    'ctrl+?': () => setShowKeyboardHelp(true),
+    'f1': () => setShowKeyboardHelp(true),
+  }), [showFilters, setViewMode, viewMode, loadDocuments]);
+
+  // Hook pour les raccourcis clavier
+  useKeyboardShortcuts(keyboardShortcuts);
 
   // Gestion des erreurs
   useEffect(() => {
@@ -167,7 +245,9 @@ export const DashboardPage = () => {
     } catch (error) {
       console.error('Erreur lors de l\'ouverture du document:', error);
       setPreviewModal(prev => ({ ...prev, loading: false }));
-      showToast('Erreur lors de l\'ouverture du document', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'ouverture du document';
+      showToast(errorMessage, 'error');
+      handleError(error instanceof Error ? error : new Error('Erreur lors de l\'ouverture du document'));
     }
   };
 
@@ -212,8 +292,10 @@ export const DashboardPage = () => {
     try {
       await Promise.all(uploadPromises);
       showToast(`${files.length} fichier(s) uploadé(s) avec succès`, 'success');
-    } catch {
-      showToast('Erreur lors de l\'upload des fichiers', 'error');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'upload des fichiers';
+      showToast(errorMessage, 'error');
+      handleError(error instanceof Error ? error : new Error('Erreur lors de l\'upload des fichiers'));
     }
   };
 
@@ -228,16 +310,31 @@ export const DashboardPage = () => {
 
   return (
     <>
-      {/* Lien vers les statistiques détaillées */}
-      <div className="mb-6">
-        <Link
-          to="/dashboard/stats"
-          className="btn btn-outline btn-primary gap-2 float-right"
-        >
-          <BarChart3 className="w-4 h-4" />
-          Voir les statistiques
-        </Link>
-        <div className="clear-both"></div>
+      {/* Header avec liens et bouton d'aide */}
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-base-content">Documents</h1>
+          <p className="text-base-content/60 text-sm mt-1">
+            Gérez vos documents en toute sécurité
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowKeyboardHelp(true)}
+            className="btn btn-ghost btn-square btn-sm"
+            title="Aide et raccourcis clavier (F1)"
+            aria-label="Afficher l'aide des raccourcis clavier"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+          <Link
+            to="/dashboard/stats"
+            className="btn btn-outline btn-primary gap-2"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">Voir les statistiques</span>
+          </Link>
+        </div>
       </div>
 
       {/* Upload Area */}
@@ -270,9 +367,23 @@ export const DashboardPage = () => {
 
       {/* Loading State */}
       {documentsLoading && (
-        <div className="flex justify-center py-12">
-          <div className="loading loading-spinner loading-lg text-primary"></div>
-        </div>
+        <LoadingSkeleton 
+          type={viewMode === 'grid' ? 'card' : 'list'} 
+          count={6}
+          className="mt-6"
+        />
+      )}
+
+      {/* Error State */}
+      {documentsError && (
+        <ErrorMessage
+          error={documentsError}
+          onRetry={() => {
+            clearDocumentsError();
+            loadDocuments();
+          }}
+          className="mt-6"
+        />
       )}
 
       {/* Documents Grid */}
@@ -363,6 +474,21 @@ export const DashboardPage = () => {
         onClose={closePreviewModal}
         document={previewModal.document}
         fileData={previewModal.fileData}
+      />
+
+      {/* Aide des raccourcis clavier */}
+      <KeyboardShortcutsHelp
+        isVisible={showKeyboardHelp}
+        onClose={() => setShowKeyboardHelp(false)}
+        shortcuts={[
+          { key: 'Ctrl + K', description: 'Recherche rapide' },
+          { key: 'Ctrl + F', description: 'Afficher/masquer les filtres' },
+          { key: 'Ctrl + G', description: 'Basculer vue grille/liste' },
+          { key: 'Ctrl + R', description: 'Actualiser les documents' },
+          { key: 'Ctrl + ?', description: 'Afficher cette aide' },
+          { key: 'F1', description: 'Afficher cette aide' },
+          { key: 'Échap', description: 'Réinitialiser filtres et fermer modals' },
+        ]}
       />
     </>
   );

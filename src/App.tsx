@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -11,23 +12,24 @@ import './App.css';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Page d'accueil publique */}
-        <Route path="/" element={<HomePage />} />
-        
-        {/* Pages d'authentification */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        
-        {/* Pages protégées */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <DashboardPage />
-              </Layout>
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          {/* Page d'accueil publique */}
+          <Route path="/" element={<HomePage />} />
+          
+          {/* Pages d'authentification */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          
+          {/* Pages protégées */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DashboardPage />
+                </Layout>
             </ProtectedRoute>
           }
         />
@@ -58,6 +60,7 @@ function App() {
         <Route path="*" element={<HomePage />} />
       </Routes>
     </Router>
+    </ErrorBoundary>
   );
 }
 
