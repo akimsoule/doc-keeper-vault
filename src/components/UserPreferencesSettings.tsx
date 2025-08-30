@@ -53,7 +53,7 @@ export const UserPreferencesSettings: React.FC = () => {
               </button>
               <button
                 onClick={() => handleThemeChange('auto')}
-                className={`btn btn-sm md:flex-1 gap-2 ${theme === 'auto' ? 'btn-primary' : 'btn-outline hover:btn-primary/20'}`}
+                className={`btn btn-sm md:flex-1 gap-2 ${theme === 'auto' as string ? 'btn-primary' : 'btn-outline hover:btn-primary/20'}`}
               >
                 <Monitor className="w-4 h-4" />
                 Auto
