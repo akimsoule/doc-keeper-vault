@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, AlertCircle, Cloud, FileText } from 'lucide-react';
+import { formatFileSize } from '../utils/formatters';
 
 interface SyncResultNotificationProps {
   isVisible: boolean;
@@ -31,13 +32,6 @@ export const SyncResultNotification: React.FC<SyncResultNotificationProps> = ({
 }) => {
   if (!isVisible) return null;
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   return (
     <div className="modal modal-open" onClick={onClose}>

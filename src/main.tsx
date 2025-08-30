@@ -4,12 +4,20 @@ import "./theme.css";
 import "./theme.custom.css";
 import "./index.css";
 import App from "./App.tsx";
-import { ToastProvider } from "./components/Toast";
+import { Toaster } from "react-hot-toast";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ToastProvider>
-      <App />
-    </ToastProvider>
+    <App />
+    <Toaster 
+      position="top-right"
+      toastOptions={{
+        duration: 4000,
+        style: {
+          background: 'var(--color-base-100)',
+          color: 'var(--color-base-content)',
+        },
+      }}
+    />
   </StrictMode>
 );

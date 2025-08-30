@@ -8,6 +8,7 @@ import {
   Star
 } from 'lucide-react';
 import { Document } from '../types';
+import { formatFileSize, formatDate } from '../utils/formatters';
 
 interface DocumentCardProps {
   document: Document;
@@ -22,21 +23,6 @@ const getFileIcon = (type: string) => {
   if (type.startsWith('audio/')) return Music;
   if (type.includes('zip') || type.includes('rar')) return Archive;
   return FileText;
-};
-
-const formatFileSize = (bytes: number) => {
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  if (bytes === 0) return '0 B';
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-};
-
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(date);
 };
 
 export const DocumentCard: React.FC<DocumentCardProps> = ({

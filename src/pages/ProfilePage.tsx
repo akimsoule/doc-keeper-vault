@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { User, Shield, Bell, HelpCircle, Settings } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useToast } from '../hooks/useToast';
+import toast from 'react-hot-toast';
 import { UserPreferencesSettings } from '../components/UserPreferencesSettings';
 
 export const ProfilePage = () => {
   const { user } = useAuth();
-  const { addToast } = useToast();
   
   const [activeTab, setActiveTab] = useState('profile');
   const [profileForm, setProfileForm] = useState({
@@ -20,19 +19,19 @@ export const ProfilePage = () => {
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implémenter la mise à jour du profil
-    addToast({ message: 'Profil mis à jour avec succès !', type: 'success' });
+    toast.success('Profil mis à jour avec succès !');
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (profileForm.newPassword !== profileForm.confirmPassword) {
-      addToast({ message: 'Les mots de passe ne correspondent pas', type: 'error' });
+      toast.error('Les mots de passe ne correspondent pas');
       return;
     }
     
     // TODO: Implémenter le changement de mot de passe
-    addToast({ message: 'Mot de passe mis à jour avec succès !', type: 'success' });
+    toast.success('Mot de passe mis à jour avec succès !');
     setProfileForm(prev => ({ 
       ...prev, 
       currentPassword: '', 

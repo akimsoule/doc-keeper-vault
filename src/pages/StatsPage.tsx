@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatFileSize } from '../utils/formatters';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -134,13 +135,6 @@ export const StatsPage = () => {
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   const getTopCategories = () => {
     if (!displayStats?.categoriesStats || !Array.isArray(displayStats.categoriesStats)) return [];

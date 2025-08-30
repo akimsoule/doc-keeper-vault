@@ -32,8 +32,6 @@ model Document {
   owner       User       @relation(fields: [ownerId], references: [id])
   ownerId     String
   isFavorite  Boolean    @default(false)
-  archived    Boolean    @default(false)
-  archivedAt  DateTime?
   createdAt   DateTime   @default(now())
   modifiedAt  DateTime   @updatedAt
   logs        Log[]      @relation("DocumentLogs")

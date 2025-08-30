@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useToast } from '../hooks/useToast';
+import toast from 'react-hot-toast';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, loading, isAuthenticated } = useAuth();
-  const { addToast } = useToast();
   const navigate = useNavigate();
 
   // Rediriger si déjà connecté
@@ -22,16 +21,16 @@ export const LoginPage = () => {
     e.preventDefault();
     
     if (!email || !password) {
-      addToast({ message: 'Veuillez remplir tous les champs', type: 'error' });
+      toast.error('Veuillez remplir tous les champs');
       return;
     }
 
     const success = await login(email, password);
     if (success) {
-      addToast({ message: 'Connexion réussie !', type: 'success' });
+      toast.success('Connexion réussie !');
       navigate('/dashboard');
     } else {
-      addToast({ message: 'Email ou mot de passe incorrect', type: 'error' });
+      toast.error('Email ou mot de passe incorrect');
     }
   };
 

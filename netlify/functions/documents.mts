@@ -270,7 +270,6 @@ async function handleCreateDocument(request: Request, user: any) {
     if (contentType.includes("multipart/form-data")) {
       // Upload de fichier
       const { data, files } = await parseFormData(request);
-      debugger;
 
       if (files.length === 0) {
         return createErrorResponse("Aucun fichier fourni", 400);
@@ -299,7 +298,6 @@ async function handleCreateDocument(request: Request, user: any) {
     } else {
       // Données JSON
       const body = await request.json();
-      debugger;
       const createData = {
         name: sanitizeString(body.name),
         type: sanitizeString(body.type),
@@ -376,12 +374,6 @@ async function handleSyncMegaFiles(request: Request, user: any) {
   try {
     const body = await request.json().catch(() => ({}));
     const folderId = body.folderId || undefined; // Optionnel: ID du dossier MEGA à synchroniser
-
-    console.log(
-      `🔄 Démarrage de la synchronisation MEGA par l'utilisateur ${
-        user.userId
-      }${folderId ? ` (dossier: ${folderId})` : ""}`
-    );
 
     const result = await documentService.synchronizeMegaFiles(
       user.userId,

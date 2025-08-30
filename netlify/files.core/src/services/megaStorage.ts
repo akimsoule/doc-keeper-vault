@@ -122,7 +122,6 @@ export class MegaStorageService {
    */
   async deleteFile(fileId: string, folderId?: string): Promise<void> {
     const storage = await this.getStorage();
-    console.log(`🔍 Recherche du fichier avec ID: ${fileId}`);
     
     let searchFiles: Array<{ nodeId: string; name?: string; delete?: () => Promise<void> }>;
     

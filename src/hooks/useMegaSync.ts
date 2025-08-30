@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import apiService from '../services/apiService';
-import { useToast } from './useToast';
+import toast from 'react-hot-toast';
 
 export interface SyncResult {
   syncedCount: number;
@@ -31,7 +31,6 @@ export const useMegaSync = (): UseMegaSyncResult => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { addToast } = useToast();
 
   const clearError = useCallback(() => {
     setError(null);
@@ -53,16 +52,10 @@ export const useMegaSync = (): UseMegaSyncResult => {
       if (showDetailedNotification) {
         // Pour les notifications détaillées, on peut utiliser un toast plus simple
         // et laisser le composant appelant afficher le modal détaillé
-        addToast({
-          type: 'success',
-          message: 'Synchronisation terminée - Voir les détails',
-        });
+        toast.success('Synchronisation terminée - Voir les détails');
       } else {
         // Toast standard avec résumé
-        addToast({
-          type: 'success',
-          message: `Synchronisation terminée: ${result.syncedCount} nouveaux documents, ${result.updatedCount} mis à jour`,
-        });
+        toast.success(`Synchronisation terminée: ${result.syncedCount} nouveaux documents, ${result.updatedCount} mis à jour`);
       }
 
       return result;
@@ -74,16 +67,13 @@ export const useMegaSync = (): UseMegaSyncResult => {
       setError(errorMessage);
       
       // Afficher un toast d'erreur
-      addToast({
-        type: 'error',
-        message: errorMessage,
-      });
+      toast.error(errorMessage);
       
       return null;
     } finally {
       setIsSyncing(false);
     }
-  }, [addToast]);
+  }, []);
 
   return {
     isSyncing,

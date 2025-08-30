@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Files, Bell, User, LogOut, UserPlus, BarChart3 } from 'lucide-react';
 import { ThemeSelector } from '../components/ThemeSelector';
 import { useAuth } from '../hooks/useAuth';
-import { useToast } from '../hooks/useToast';
+import toast from 'react-hot-toast';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,12 +10,11 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const { user, isAuthenticated, logout } = useAuth();
-  const { addToast } = useToast();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    addToast({ message: 'Déconnexion réussie', type: 'success' });
+    toast.success('Déconnexion réussie');
     navigate('/');
   };
 

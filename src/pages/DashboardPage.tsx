@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Files, BarChart3, HelpCircle, Cloud, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { SearchBar } from '../components/SearchBar';
 import { TagFilter } from '../components/TagFilter';
 import { DocumentCard } from '../components/DocumentCard';
@@ -12,7 +13,6 @@ import { ErrorMessage } from '../components/ErrorBoundary';
 import { LoadingSkeleton } from '../components/Loading';
 import { KeyboardShortcutsHelp } from '../components/SwipeGesture';
 import { useDocuments } from '../hooks/useDocuments';
-import { useToast } from '../hooks/useToast';
 import { useViewMode } from '../hooks/useViewMode';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -85,38 +85,35 @@ export const DashboardPage = () => {
     onlyArchived: selectedTags.includes('archive'),
   });
 
-  // Hook des toasts
-  const { addToast } = useToast();
-
   // Fonction helper pour les toasts
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning') => {
-    addToast({ message, type });
-  }, [addToast]);
+    switch (type) {
+      case 'success':
+        toast.success(message);
+        break;
+      case 'error':
+        toast.error(message);
+        break;
+      case 'info':
+        toast(message);
+        break;
+      case 'warning':
+        toast(message, { icon: '⚠️' });
+        break;
+    }
+  }, []);
 
   // Fonction pour charger le nombre de documents archivés
   const loadArchivedCount = useCallback(async () => {
     try {
       // Compter les documents archivés
-      console.log('Loading archived count...');
       const archivedResponse = await apiService.getDocuments({
         page: 1,
         limit: 1000, // Prendre un grand nombre pour compter
         includeArchived: true
       });
       
-      console.log('All documents (with archived):', archivedResponse.documents);
-      // Log détaillé des documents pour debug
-      archivedResponse.documents.forEach((doc, index) => {
-        console.log(`Document ${index + 1}:`, {
-          id: doc.id,
-          name: doc.name,
-          archived: doc.archived,
-          archivedDate: doc.archivedDate
-        });
-      });
       const archived = archivedResponse.documents.filter(doc => doc.archived);
-      console.log('Archived documents:', archived);
-      console.log('Archived count:', archived.length);
       setArchivedCount(archived.length);
       
       // Calculer aussi le total des documents non archivés (pour le bouton "Tous")
@@ -169,9 +166,6 @@ export const DashboardPage = () => {
       return { tagsWithCount: [] };
     }
     
-    // Debug: afficher le nombre de documents archivés
-    console.log('archivedCount:', archivedCount);
-    
     // Calculer les tags à partir des documents NON ARCHIVÉS
     const tagMap = new Map<string, number>();
     documentsForTags.forEach(doc => {
@@ -196,8 +190,6 @@ export const DashboardPage = () => {
         color: getTagColor('archive'),
       });
     }
-    
-    console.log('Final tags:', dynamicTags);
     
     return { tagsWithCount: dynamicTags };
   }, [allNonArchivedDocuments, archivedCount, getTagColor]);

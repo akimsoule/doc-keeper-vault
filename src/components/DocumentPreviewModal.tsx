@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Download, FileText, Image, FileVideo, FileAudio, Archive, Star, Trash2, Share2, Tag, Plus, Check, ArchiveRestore, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatFileSize } from '../utils/formatters';
 import { Document } from '../types';
 
 interface DocumentPreviewModalProps {
@@ -336,13 +337,6 @@ export const DocumentPreviewModal = ({
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   if (!isOpen || !document) return null;
 

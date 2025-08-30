@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useToast } from '../hooks/useToast';
+import toast from 'react-hot-toast';
+
 
 export const RegisterPage = () => {
   const [name, setName] = useState('');
@@ -10,7 +11,6 @@ export const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { register, loading, isAuthenticated } = useAuth();
-  const { addToast } = useToast();
   const navigate = useNavigate();
 
   // Rediriger si déjà connecté
@@ -24,26 +24,26 @@ export const RegisterPage = () => {
     e.preventDefault();
     
     if (!name || !email || !password || !confirmPassword) {
-      addToast({ message: 'Veuillez remplir tous les champs', type: 'error' });
+      toast.error('Veuillez remplir tous les champs');
       return;
     }
 
     if (password !== confirmPassword) {
-      addToast({ message: 'Les mots de passe ne correspondent pas', type: 'error' });
+      toast.error('Les mots de passe ne correspondent pas');
       return;
     }
 
     if (password.length < 6) {
-      addToast({ message: 'Le mot de passe doit contenir au moins 6 caractères', type: 'error' });
+      toast.error('Le mot de passe doit contenir au moins 6 caractères');
       return;
     }
 
     const success = await register(email, name, password);
     if (success) {
-      addToast({ message: 'Inscription réussie !', type: 'success' });
+      toast.success('Inscription réussie !');
       navigate('/dashboard');
     } else {
-      addToast({ message: 'Erreur lors de l\'inscription', type: 'error' });
+      toast.error('Erreur lors de l\'inscription');
     }
   };
 

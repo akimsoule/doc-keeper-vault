@@ -116,10 +116,6 @@ export const useDocuments = (
 
       const response = await apiService.getDocuments(params);
       
-      console.log('API response:', response);
-      console.log('onlyArchived:', onlyArchived);
-      console.log('includeArchived param:', params.includeArchived);
-      
       // Si onlyArchived est true, filtrer pour ne garder que les documents archivés
       let filteredDocuments = response.documents;
       let filteredTotal = response.total;
@@ -127,7 +123,6 @@ export const useDocuments = (
       if (onlyArchived) {
         filteredDocuments = response.documents.filter(doc => doc.archived);
         filteredTotal = filteredDocuments.length;
-        console.log('Filtered archived documents:', filteredDocuments);
       }
       
       setDocuments(filteredDocuments);
