@@ -3,8 +3,8 @@ import { LogService } from './logService';
 
 export interface SearchFilters {
   query?: string;
-  category?: string;
   tags?: string[];
+  tag?: string; // Pour la compatibilité avec l'API
   type?: string;
   ownerId?: string;
   ownerEmail?: string;
@@ -13,7 +13,7 @@ export interface SearchFilters {
   sizeMin?: number;
   sizeMax?: number;
   isFavorite?: boolean;
-  sortBy?: 'name' | 'date' | 'size' | 'category' | 'relevance';
+  sortBy?: 'name' | 'date' | 'size' | 'relevance';
   sortOrder?: 'asc' | 'desc';
   limit?: number;
   offset?: number;
@@ -24,7 +24,6 @@ export interface SearchResult {
     id: string;
     name: string;
     type: string;
-    category: string;
     size: number;
     description?: string | null;
     tags: string;
@@ -47,7 +46,7 @@ export interface SearchResult {
 }
 
 export interface SearchSuggestion {
-  type: 'document' | 'category' | 'tag' | 'user';
+  type: 'document' | 'tag' | 'user';
   value: string;
   count: number;
 }
@@ -73,8 +72,8 @@ export class SearchService {
     
     const {
       query,
-      category,
       tags,
+      tag,
       type,
       ownerId,
       ownerEmail,
@@ -101,7 +100,14 @@ export class SearchService {
     }
 
     // Filtres spécifiques
-    if (category) where.category = category;
+    if (tag) {
+      where.tags = { contains: tag, mode: 'insensitive' as const };
+    }
+    if (tags && tags.length > 0) {
+      where.AND = tags.map(t => ({
+        tags: { contains: t, mode: 'insensitive' as const }
+      }));
+    }
     if (type) where.type = type;
     if (ownerId) where.ownerId = ownerId;
     if (isFavorite !== undefined) where.isFavorite = isFavorite;
@@ -138,7 +144,7 @@ export class SearchService {
     if (sortBy === 'name') orderBy = { name: sortOrder };
     else if (sortBy === 'date') orderBy = { createdAt: sortOrder };
     else if (sortBy === 'size') orderBy = { size: sortOrder };
-    else if (sortBy === 'category') orderBy = { category: sortOrder };
+    // Note: le tri par category a été supprimé car cette propriété n'existe plus
 
     // Exécution de la recherche
     const [documents, totalCount] = await Promise.all([
@@ -220,14 +226,13 @@ export class SearchService {
   }
 
   /**
-   * Recherche de documents similaires basée sur les tags et la catégorie
+   * Recherche de documents similaires basée sur les tags
    */
   async findSimilarDocuments(documentId: string, limit: number = 5) {
     const document = await prisma.document.findUnique({
       where: { id: documentId },
       select: { 
         tags: true, 
-        category: true, 
         type: true,
         ownerId: true,
       },
@@ -243,7 +248,6 @@ export class SearchService {
       where: {
         id: { not: documentId },
         OR: [
-          { category: document.category },
           { type: document.type },
           ...(tags.length > 0 ? tags.map(tag => ({
             tags: { contains: tag, mode: 'insensitive' as const }
@@ -348,34 +352,8 @@ export class SearchService {
       });
     }
 
-    if (!type || type === 'category') {
-      const categories = await prisma.document.groupBy({
-        by: ['category'],
-        where: {
-          category: {
-            contains: query,
-            mode: 'insensitive' as const,
-          },
-        },
-        _count: { category: true },
-        orderBy: {
-          _count: {
-            category: 'desc'
-          }
-        },
-        take: 5,
-      });
-
-      categories.forEach(cat => {
-        suggestions.push({
-          type: 'category',
-          value: cat.category,
-          count: cat._count?.category || 0,
-        });
-      });
-    }
-
     if (!type || type === 'tag') {
+      // Recherche de tags - on collecte tous les tags uniques qui contiennent la query
       const documents = await prisma.document.findMany({
         where: {
           tags: {
@@ -384,14 +362,15 @@ export class SearchService {
           },
         },
         select: { tags: true },
-        take: 20,
+        take: 100, // On prend plus de documents pour extraire les tags
       });
 
       const tagCounts = new Map<string, number>();
+      
       documents.forEach(doc => {
         if (doc.tags) {
-          const tags = doc.tags.split(',').map(t => t.trim());
-          tags.forEach(tag => {
+          const docTags = doc.tags.split(',').map(t => t.trim()).filter(Boolean);
+          docTags.forEach(tag => {
             if (tag.toLowerCase().includes(query.toLowerCase())) {
               tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
             }
@@ -399,8 +378,9 @@ export class SearchService {
         }
       });
 
+      // Convertir en suggestions et trier par fréquence
       Array.from(tagCounts.entries())
-        .sort((a, b) => b[1] - a[1])
+        .sort(([,a], [,b]) => b - a)
         .slice(0, 5)
         .forEach(([tag, count]) => {
           suggestions.push({

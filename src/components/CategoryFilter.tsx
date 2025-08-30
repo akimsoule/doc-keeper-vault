@@ -1,27 +1,26 @@
 import React from 'react';
-import { Category } from '../types';
 
-interface CategoryFilterProps {
-  categories: Category[];
-  selectedCategory: string;
-  setSelectedCategory: (categoryId: string) => void;
+interface TagFilterLegacyProps {
+  tags: Array<{ name: string; count: number; color?: string }>;
+  selectedTag: string;
+  setSelectedTag: (tagName: string) => void;
   showFilters: boolean;
   totalDocuments: number;
 }
 
-export const CategoryFilter: React.FC<CategoryFilterProps> = ({
-  categories,
-  selectedCategory,
-  setSelectedCategory,
+export const CategoryFilter: React.FC<TagFilterLegacyProps> = ({
+  tags,
+  selectedTag,
+  setSelectedTag,
   showFilters,
   totalDocuments,
 }) => {
   if (!showFilters) return null;
 
-  const handleKeyDown = (e: React.KeyboardEvent, categoryId: string) => {
+  const handleKeyDown = (e: React.KeyboardEvent, tagName: string) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      setSelectedCategory(categoryId);
+      setSelectedTag(tagName);
     }
   };
 
@@ -29,49 +28,49 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
     <div 
       className="mb-4 sm:mb-6 p-4 sm:p-6 bg-base-100/60 backdrop-blur-sm rounded-lg sm:rounded-xl border border-base-300 animate-in slide-in-from-top-2 duration-200"
       role="group"
-      aria-labelledby="category-filter-title"
+      aria-labelledby="tag-filter-title"
     >
       <h3 
-        id="category-filter-title" 
+        id="tag-filter-title" 
         className="text-sm font-medium text-base-content mb-3 sm:mb-4"
       >
-        Filtrer par catégorie
+        Filtrer par tag
       </h3>
-      <div className="flex flex-wrap gap-1.5 sm:gap-2" role="radiogroup" aria-labelledby="category-filter-title">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2" role="radiogroup" aria-labelledby="tag-filter-title">
         <button
-          onClick={() => setSelectedCategory('')}
+          onClick={() => setSelectedTag('')}
           onKeyDown={(e) => handleKeyDown(e, '')}
           className={`btn btn-sm ${
-            selectedCategory === ''
+            selectedTag === ''
               ? 'btn-neutral'
               : 'btn-outline btn-ghost'
           }`}
           role="radio"
-          aria-checked={selectedCategory === ''}
+          aria-checked={selectedTag === ''}
           aria-label={`Afficher tous les documents (${totalDocuments} documents)`}
         >
           Tous ({totalDocuments})
         </button>
-        {categories.map((category) => (
+        {tags.map((tag) => (
           <button
-            key={category.id}
-            onClick={() => setSelectedCategory(category.id)}
-            onKeyDown={(e) => handleKeyDown(e, category.id)}
+            key={tag.name}
+            onClick={() => setSelectedTag(tag.name)}
+            onKeyDown={(e) => handleKeyDown(e, tag.name)}
             className={`btn btn-sm flex items-center gap-1 sm:gap-2 ${
-              selectedCategory === category.id
+              selectedTag === tag.name
                 ? 'btn-primary'
                 : 'btn-outline btn-ghost'
             }`}
             style={{
-              backgroundColor: selectedCategory === category.id ? category.color : undefined,
-              borderColor: selectedCategory === category.id ? category.color : undefined,
+              backgroundColor: selectedTag === tag.name ? tag.color : undefined,
+              borderColor: selectedTag === tag.name ? tag.color : undefined,
             }}
             role="radio"
-            aria-checked={selectedCategory === category.id}
-            aria-label={`Filtrer par ${category.name} (${category.count} documents)`}
+            aria-checked={selectedTag === tag.name}
+            aria-label={`Filtrer par ${tag.name} (${tag.count} documents)`}
           >
-            <span className="text-xs sm:text-sm" aria-hidden="true">{category.icon}</span>
-            {category.name} ({category.count})
+            <span className="text-xs sm:text-sm" aria-hidden="true">#</span>
+            {tag.name} ({tag.count})
           </button>
         ))}
       </div>

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Files, BarChart3, HelpCircle, Cloud, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
-import { CategoryFilter } from '../components/CategoryFilter';
+import { TagFilter } from '../components/TagFilter';
 import { DocumentCard } from '../components/DocumentCard';
 import { UploadArea } from '../components/UploadArea';
 import { ViewControls } from '../components/ViewControls';
@@ -17,7 +17,7 @@ import { useViewMode } from '../hooks/useViewMode';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useMegaSync } from '../hooks/useMegaSync';
-import { Category, Document as DocumentType } from '../types';
+import { Document as DocumentType } from '../types';
 import apiService from '../services/apiService';
 
 export const DashboardPage = () => {
@@ -32,12 +32,11 @@ export const DashboardPage = () => {
   
   // État de l'application
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [includeArchived, setIncludeArchived] = useState(false);
   const [archivedCount, setArchivedCount] = useState(0);
-  const [totalAllDocuments, setTotalAllDocuments] = useState(0);
   const [allNonArchivedDocuments, setAllNonArchivedDocuments] = useState<DocumentType[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<{
     show: boolean;
@@ -79,9 +78,9 @@ export const DashboardPage = () => {
   } = useDocuments({
     autoLoad: true,
     searchQuery: searchTerm,
-    category: selectedCategory === 'archive' ? '' : selectedCategory, // Ne pas filtrer par catégorie si c'est "archive"
-    includeArchived: selectedCategory === 'archive' ? true : includeArchived, // Toujours inclure les archivés si catégorie "archive"
-    onlyArchived: selectedCategory === 'archive', // Filtrer pour ne garder que les archivés si catégorie "archive"
+    // Ne pas filtrer par tag côté serveur pour permettre le filtrage multiple côté client
+    includeArchived: selectedTags.includes('archive') ? true : includeArchived,
+    onlyArchived: selectedTags.includes('archive'),
   });
 
   // Hook des toasts
@@ -120,7 +119,6 @@ export const DashboardPage = () => {
       
       // Calculer aussi le total des documents non archivés (pour le bouton "Tous")
       const nonArchived = archivedResponse.documents.filter(doc => !doc.archived);
-      setTotalAllDocuments(nonArchived.length);
       setAllNonArchivedDocuments(nonArchived);
     } catch (error) {
       console.error('Erreur lors du chargement du nombre de documents archivés:', error);
@@ -133,30 +131,20 @@ export const DashboardPage = () => {
   }, [loadArchivedCount]);
 
   // Fonctions helper pour les catégories
-  const getCategoryColor = useCallback((category: string): string => {
-    const colors: Record<string, string> = {
-      images: '#10b981',
-      documents: '#3b82f6', 
-      pdf: '#ef4444',
-      tableaux: '#f59e0b',
-      videos: '#8b5cf6',
-      archive: '#9333ea',
-      autres: '#6b7280',
+    const getTagColor = useCallback((tag: string): string => {
+    const colors: { [key: string]: string } = {
+      'archive': '#9CA3AF',
+      'travail': '#3B82F6',
+      'personnel': '#10B981',
+      'important': '#EF4444',
+      'finance': '#F59E0B',
+      'santé': '#8B5CF6',
+      'administration': '#6B7280',
+      'projet': '#06B6D4',
+      'formation': '#84CC16',
+      'juridique': '#F97316',
     };
-    return colors[category] || '#6b7280';
-  }, []);
-
-  const getCategoryIcon = useCallback((category: string): string => {
-    const icons: Record<string, string> = {
-      images: '🖼️',
-      documents: '📄',
-      pdf: '📕',
-      tableaux: '📊',
-      videos: '🎥',
-      archive: '📦',
-      autres: '📁',
-    };
-    return icons[category] || '📁';
+    return colors[tag.toLowerCase()] || '#6B7280';
   }, []);
 
   // Fonction de synchronisation MEGA avec useCallback
@@ -169,54 +157,71 @@ export const DashboardPage = () => {
     }
   }, [syncMegaFiles, loadDocuments]);
 
-  // Documents et catégories dynamiques
-  const { categories } = useMemo(() => {
-    // Utiliser allNonArchivedDocuments pour calculer les catégories (pas documents qui varie selon la vue)
-    const documentsForCategories = allNonArchivedDocuments;
+  // Documents et tags dynamiques
+  const { tagsWithCount } = useMemo(() => {
+    // Utiliser allNonArchivedDocuments pour calculer les tags (pas documents qui varie selon la vue)
+    const documentsForTags = allNonArchivedDocuments;
     
     // Protection contre undefined/null
-    if (!Array.isArray(documentsForCategories)) {
-      return { categories: [] };
+    if (!Array.isArray(documentsForTags)) {
+      return { tagsWithCount: [] };
     }
     
     // Debug: afficher le nombre de documents archivés
     console.log('archivedCount:', archivedCount);
     
-    // Calculer les catégories à partir des documents NON ARCHIVÉS
-    const categoryMap = new Map<string, number>();
-    documentsForCategories.forEach(doc => {
-      const category = doc.category || 'autres';
-      categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+    // Calculer les tags à partir des documents NON ARCHIVÉS
+    const tagMap = new Map<string, number>();
+    documentsForTags.forEach(doc => {
+      if (doc.tags && Array.isArray(doc.tags)) {
+        doc.tags.forEach(tag => {
+          tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
+        });
+      }
     });
 
-    const dynamicCategories: Category[] = Array.from(categoryMap.entries()).map(([name, count]) => ({
-      id: name,
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      color: getCategoryColor(name),
-      icon: getCategoryIcon(name),
+    const dynamicTags = Array.from(tagMap.entries()).map(([name, count]) => ({
+      name,
       count,
+      color: getTagColor(name),
     }));
     
-    // Ajouter la catégorie Archive (test avec compteur fixe)
-    dynamicCategories.push({
-      id: 'archive',
-      name: 'Archive',
-      color: getCategoryColor('archive'),
-      icon: getCategoryIcon('archive'),
-      count: archivedCount || 0, // Afficher 0 si pas de documents archivés
+    // Ajouter le tag Archive (test avec compteur fixe)
+    if (archivedCount > 0) {
+      dynamicTags.push({
+        name: 'archive',
+        count: archivedCount,
+        color: getTagColor('archive'),
+      });
+    }
+    
+    console.log('Final tags:', dynamicTags);
+    
+    return { tagsWithCount: dynamicTags };
+  }, [allNonArchivedDocuments, archivedCount, getTagColor]);
+
+  // Filtrage côté client des documents par tags sélectionnés
+  const filteredDocuments = useMemo(() => {
+    if (!Array.isArray(documents)) return [];
+    
+    // Si aucun tag sélectionné, retourner tous les documents
+    if (selectedTags.length === 0) return documents;
+    
+    // Filtrer par tags sélectionnés (ET logique : le document doit avoir TOUS les tags sélectionnés)
+    return documents.filter(doc => {
+      const docTags = doc.tags || [];
+      return selectedTags.every(selectedTag => 
+        docTags.includes(selectedTag)
+      );
     });
-    
-    console.log('Final categories:', dynamicCategories);
-    
-    return { categories: dynamicCategories };
-  }, [allNonArchivedDocuments, getCategoryColor, getCategoryIcon, archivedCount]);
+  }, [documents, selectedTags]);
 
   // Remettre à la page 1 quand les filtres changent
   useEffect(() => {
     if (currentPage > 1) {
       goToPage(1);
     }
-  }, [searchTerm, selectedCategory, goToPage, currentPage]);
+  }, [searchTerm, selectedTags, goToPage, currentPage]);
 
   // Configuration des raccourcis clavier
   const keyboardShortcuts = useMemo(() => ({
@@ -239,7 +244,7 @@ export const DashboardPage = () => {
     },
     'escape': () => {
       setSearchTerm('');
-      setSelectedCategory('');
+      setSelectedTags([]);
       setShowFilters(false);
       setShowKeyboardHelp(false);
     },
@@ -327,6 +332,21 @@ export const DashboardPage = () => {
       );
       // Recharger le nombre de documents archivés
       loadArchivedCount();
+    }
+  };
+
+  const handleUpdateTags = async (id: string, tags: string[]) => {
+    try {
+      await apiService.updateDocument(id, { tags });
+      // Recharger les documents pour refléter les changements
+      loadDocuments();
+      // Recharger aussi les données pour recalculer les tags disponibles
+      loadArchivedCount();
+      showToast('Tags mis à jour avec succès', 'success');
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour des tags:', error);
+      showToast('Erreur lors de la mise à jour des tags', 'error');
+      throw error;
     }
   };
 
@@ -489,16 +509,17 @@ export const DashboardPage = () => {
         setShowFilters={setShowFilters}
       />
 
-      <CategoryFilter
-        categories={categories}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
-        showFilters={showFilters}
-        totalDocuments={totalAllDocuments}
-      />
+      {showFilters && (
+        <TagFilter
+          selectedTags={selectedTags}
+          onTagsChange={setSelectedTags}
+          availableTags={tagsWithCount}
+          className="mb-4"
+        />
+      )}
 
       {/* Archive Filter */}
-      {showFilters && selectedCategory !== 'archive' && (
+      {showFilters && !selectedTags.includes('archive') && (
         <div className="mb-4 p-4 bg-base-200 rounded-lg">
           <div className="form-control">
             <label className="label cursor-pointer justify-start gap-3">
@@ -518,7 +539,7 @@ export const DashboardPage = () => {
       <ViewControls
         viewMode={viewMode}
         setViewMode={setViewMode}
-        totalDocuments={documents.length}
+        totalDocuments={filteredDocuments.length}
       />
 
       {/* Loading State */}
@@ -545,13 +566,13 @@ export const DashboardPage = () => {
       {/* Documents Grid */}
       {!documentsLoading && (
         <>
-          {documents.length > 0 ? (
+          {filteredDocuments.length > 0 ? (
             <div className={`${
               viewMode === 'grid' 
                 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
                 : 'space-y-3'
             }`}>
-              {documents.map((document) => (
+              {filteredDocuments.map((document) => (
                 <DocumentCard
                   key={document.id}
                   document={document}
@@ -560,6 +581,7 @@ export const DashboardPage = () => {
                   onView={handleViewDocument}
                   onArchive={handleArchiveDocument}
                   onUnarchive={handleUnarchiveDocument}
+                  onUpdateTags={handleUpdateTags}
                   viewMode={viewMode}
                 />
               ))}
@@ -582,7 +604,7 @@ export const DashboardPage = () => {
                   <button
                     onClick={() => {
                       setSearchTerm('');
-                      setSelectedCategory('');
+                      setSelectedTags([]);
                       loadDocuments();
                     }}
                     className="btn btn-primary"
@@ -597,7 +619,7 @@ export const DashboardPage = () => {
       )}
 
       {/* Pagination */}
-      {!documentsLoading && documents.length > 0 && (
+      {!documentsLoading && filteredDocuments.length > 0 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}

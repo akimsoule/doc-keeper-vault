@@ -225,9 +225,10 @@ async function handleGetDocuments(url: URL, user: any) {
     const pagination = validatePagination(url);
 
     const filters: any = {};
-    if (category) filters.category = category;
+    // Compatibilité: convertir category en tag
+    if (category) filters.tag = category;
     if (search) filters.search = search;
-    if (tag) filters.tags = [tag];
+    if (tag) filters.tag = tag;
     if (userId) filters.ownerId = userId;
 
     // Par défaut, exclure les documents archivés
@@ -283,9 +284,8 @@ async function handleCreateDocument(request: Request, user: any) {
       const createData = {
         name: sanitizeString(data.name || file.name),
         type: sanitizeString(data.type || documentType),
-        category: sanitizeString(data.category || "general"),
         description: sanitizeString(data.description || ""),
-        tags: data.tags,
+        tags: data.tags || "general", // Utiliser "general" comme tag par défaut au lieu de category
         ownerId: user.userId,
         file: {
           name: file.name,
@@ -303,9 +303,8 @@ async function handleCreateDocument(request: Request, user: any) {
       const createData = {
         name: sanitizeString(body.name),
         type: sanitizeString(body.type),
-        category: sanitizeString(body.category),
         description: sanitizeString(body.description || ""),
-        tags: body.tags,
+        tags: body.tags || "general", // Utiliser "general" comme tag par défaut
         ownerId: user.userId,
       };
 
@@ -330,7 +329,13 @@ async function handleUpdateDocument(
     const updateData: any = {};
     if (body.name) updateData.name = sanitizeString(body.name);
     if (body.type) updateData.type = sanitizeString(body.type);
-    if (body.category) updateData.category = sanitizeString(body.category);
+    // Note: category est maintenant géré via tags
+    if (body.category) {
+      // Compatibilité: convertir category en tag
+      const currentTags = body.tags || "";
+      const categoryAsTag = sanitizeString(body.category);
+      updateData.tags = currentTags ? `${currentTags},${categoryAsTag}` : categoryAsTag;
+    }
     if (body.description)
       updateData.description = sanitizeString(body.description);
     if (body.tags) updateData.tags = body.tags;
@@ -390,14 +395,14 @@ async function handleSyncMegaFiles(request: Request, user: any) {
       newDocuments: result.newDocuments.map((doc) => ({
         id: doc.id,
         name: doc.name,
-        category: doc.category,
         size: doc.size,
+        tags: doc.tags,
       })),
       updatedDocuments: result.updatedDocuments.map((doc) => ({
         id: doc.id,
         name: doc.name,
-        category: doc.category,
         size: doc.size,
+        tags: doc.tags,
       })),
     });
   } catch (error) {

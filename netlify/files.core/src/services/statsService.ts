@@ -1,7 +1,7 @@
 import prisma from './database';
 import { LogService } from './logService';
 
-export interface CategoryStat {
+export interface TagStat {
   name: string;
   count: number;
   totalSize: number;
@@ -13,7 +13,7 @@ export interface SystemStats {
   totalDocuments: number;
   totalSize: number;
   totalUsers: number;
-  categoriesStats: CategoryStat[];
+  tagsStats: TagStat[];
   typeStats: { type: string; count: number; totalSize: number }[];
   recentActivity: number; // Documents créés dans les 7 derniers jours
   favoriteDocuments: number;
@@ -27,7 +27,7 @@ export interface UserStats {
   documentCount: number;
   totalSize: number;
   favoriteCount: number;
-  categoriesUsed: string[];
+  tagsUsed: string[];
   mostUsedType: string;
   lastActivity?: Date;
 }
@@ -53,7 +53,7 @@ export class StatsService {
       totalDocuments,
       totalSize,
       totalUsers,
-      categoriesData,
+      allDocuments, // On récupère tous les documents pour analyser les tags
       typesData,
       recentDocs,
       favoriteDocs,
@@ -62,11 +62,9 @@ export class StatsService {
       prisma.document.count(),
       prisma.document.aggregate({ _sum: { size: true } }),
       prisma.user.count(),
-      prisma.document.groupBy({
-        by: ['category'],
-        _count: { category: true },
-        _sum: { size: true },
-        _max: { createdAt: true },
+      prisma.document.findMany({
+        select: { tags: true, size: true, createdAt: true },
+        where: { tags: { not: '' } }, // Seulement les documents avec tags
       }),
       prisma.document.groupBy({
         by: ['type'],
@@ -84,17 +82,36 @@ export class StatsService {
       prisma.document.count({ where: { tags: { not: '' } } }),
     ]);
 
-    const categoriesStats: CategoryStat[] = categoriesData.map(cat => ({
-      name: cat.category,
-      count: cat._count.category,
-      totalSize: cat._sum.size || 0,
-      averageSize: (cat._sum.size || 0) / cat._count.category,
-      lastDocumentDate: cat._max.createdAt || undefined,
+    // Analyser les tags et calculer les statistiques
+    const tagStats = new Map<string, { count: number; totalSize: number; lastDate?: Date }>();
+    
+    allDocuments.forEach(doc => {
+      if (doc.tags) {
+        const tags = doc.tags.split(',').map(t => t.trim()).filter(Boolean);
+        tags.forEach(tag => {
+          const existing = tagStats.get(tag) || { count: 0, totalSize: 0 };
+          tagStats.set(tag, {
+            count: existing.count + 1,
+            totalSize: existing.totalSize + doc.size,
+            lastDate: !existing.lastDate || doc.createdAt > existing.lastDate 
+              ? doc.createdAt 
+              : existing.lastDate,
+          });
+        });
+      }
+    });
+
+    const tagsStats: TagStat[] = Array.from(tagStats.entries()).map(([tag, stats]) => ({
+      name: tag,
+      count: stats.count,
+      totalSize: stats.totalSize,
+      averageSize: stats.totalSize / stats.count,
+      lastDocumentDate: stats.lastDate,
     }));
 
     const typeStats = typesData.map(type => ({
       type: type.type,
-      count: type._count.type,
+      count: type._count.type || 0,
       totalSize: type._sum.size || 0,
     }));
 
@@ -102,7 +119,7 @@ export class StatsService {
       totalDocuments,
       totalSize: totalSize._sum.size || 0,
       totalUsers,
-      categoriesStats,
+      tagsStats,
       typeStats,
       recentActivity: recentDocs,
       favoriteDocuments: favoriteDocs,
@@ -130,7 +147,7 @@ export class StatsService {
     ] = await Promise.all([
       prisma.document.findMany({
         where: { ownerId: userId },
-        select: { category: true, type: true, size: true },
+        select: { tags: true, type: true, size: true },
       }),
       prisma.document.count({
         where: { ownerId: userId, isFavorite: true },
@@ -142,7 +159,16 @@ export class StatsService {
       }),
     ]);
 
-    const categoriesUsed = [...new Set(documents.map(doc => doc.category))];
+    // Extraire tous les tags uniques utilisés par l'utilisateur
+    const allTags = new Set<string>();
+    documents.forEach(doc => {
+      if (doc.tags) {
+        const tags = doc.tags.split(',').map(t => t.trim()).filter(Boolean);
+        tags.forEach(tag => allTags.add(tag));
+      }
+    });
+    const tagsUsed = Array.from(allTags);
+
     const typeCounts = documents.reduce((acc, doc) => {
       acc[doc.type] = (acc[doc.type] || 0) + 1;
       return acc;
@@ -159,7 +185,7 @@ export class StatsService {
       documentCount: documents.length,
       totalSize: documents.reduce((sum, doc) => sum + doc.size, 0),
       favoriteCount,
-      categoriesUsed,
+      tagsUsed,
       mostUsedType,
       lastActivity: lastActivity?.modifiedAt,
     };
@@ -246,7 +272,7 @@ export class StatsService {
         documents: {
           select: {
             size: true,
-            category: true,
+            tags: true,
             type: true,
             isFavorite: true,
             modifiedAt: true,
@@ -257,7 +283,17 @@ export class StatsService {
 
     const userStats = users.map(user => {
       const docs = user.documents;
-      const categoriesUsed = [...new Set(docs.map(doc => doc.category))];
+      
+      // Extraire tous les tags uniques utilisés par l'utilisateur
+      const allTags = new Set<string>();
+      docs.forEach(doc => {
+        if (doc.tags) {
+          const tags = doc.tags.split(',').map(t => t.trim()).filter(Boolean);
+          tags.forEach(tag => allTags.add(tag));
+        }
+      });
+      const tagsUsed = Array.from(allTags);
+
       const typeCounts = docs.reduce((acc, doc) => {
         acc[doc.type] = (acc[doc.type] || 0) + 1;
         return acc;
@@ -278,7 +314,7 @@ export class StatsService {
         documentCount: docs.length,
         totalSize: docs.reduce((sum, doc) => sum + doc.size, 0),
         favoriteCount: docs.filter(doc => doc.isFavorite).length,
-        categoriesUsed,
+        tagsUsed,
         mostUsedType,
         lastActivity,
       };
@@ -290,11 +326,11 @@ export class StatsService {
   }
 
   /**
-   * Obtient les catégories les plus populaires
+   * Obtient les tags les plus populaires
    */
-  async getPopularCategories(limit: number = 10): Promise<CategoryStat[]> {
+  async getPopularTags(limit: number = 10): Promise<TagStat[]> {
     const stats = await this.getSystemStats();
-    return stats.categoriesStats
+    return stats.tagsStats
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);
   }

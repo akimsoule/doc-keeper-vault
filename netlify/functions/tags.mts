@@ -42,7 +42,8 @@ export default handleErrors(async (request: Request, context: Context) => {
       if (tagName) {
         return await handleTagStats(tagName);
       } else {
-        return await handleListTags();
+        const searchQuery = url.searchParams.get('q') || url.searchParams.get('search');
+        return await handleListTags(searchQuery);
       }
 
     case 'DELETE':
@@ -59,10 +60,19 @@ export default handleErrors(async (request: Request, context: Context) => {
 
 // Fonctions helper
 
-async function handleListTags() {
+async function handleListTags(searchQuery?: string | null) {
   try {
-    const allTags = await tagService.getAllTags();
-    return createSuccessResponse(allTags);
+    let tags;
+    
+    if (searchQuery && searchQuery.trim()) {
+      // Recherche de tags spécifiques
+      tags = await tagService.searchTags(searchQuery.trim());
+    } else {
+      // Récupération de tous les tags
+      tags = await tagService.getAllTags();
+    }
+    
+    return createSuccessResponse(tags);
   } catch (error) {
     console.error('Erreur lors de la récupération des tags:', error);
     return createErrorResponse('Erreur lors de la récupération des tags', 500);
@@ -71,8 +81,8 @@ async function handleListTags() {
 
 async function handleTagStats(tagName: string) {
   try {
-    const tagStats = await tagService.getTagStats();
-    const specificTag = tagStats.find(t => t.tag === tagName);
+    const allTags = await tagService.getAllTags();
+    const specificTag = allTags.find(t => t.name === tagName);
     
     if (!specificTag) {
       return createErrorResponse('Tag non trouvé', 404);
@@ -87,9 +97,12 @@ async function handleTagStats(tagName: string) {
 
 async function handleDeleteTag(tagName: string, user: any) {
   try {
-    // Note: Cette fonctionnalité nécessiterait d'étendre le TagService
-    // pour supprimer complètement un tag du système
-    return createErrorResponse('Suppression complète de tags non implémentée', 501);
+    const updatedCount = await tagService.deleteTag(tagName);
+    
+    return createSuccessResponse({
+      message: `Tag "${tagName}" supprimé avec succès`,
+      updatedDocuments: updatedCount
+    });
   } catch (error) {
     console.error('Erreur lors de la suppression du tag:', error);
     return createErrorResponse('Erreur lors de la suppression du tag', 500);

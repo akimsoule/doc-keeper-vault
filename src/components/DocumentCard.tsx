@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { 
   FileText, 
   Image, 
@@ -12,7 +12,11 @@ import {
   Trash2,
   Eye,
   MoreHorizontal,
-  MoreVertical
+  MoreVertical,
+  Tag,
+  X,
+  Plus,
+  Check
 } from 'lucide-react';
 import { Document } from '../types';
 import { apiService } from '../services/apiService';
@@ -24,6 +28,7 @@ interface DocumentCardProps {
   onView: (id: string) => void;
   onArchive?: (id: string) => void;
   onUnarchive?: (id: string) => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
   viewMode: 'grid' | 'list';
 }
 
@@ -57,10 +62,14 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   onView,
   onArchive,
   onUnarchive,
+  onUpdateTags,
   viewMode,
 }) => {
   const [showActions, setShowActions] = React.useState(false);
   const [showDropdown, setShowDropdown] = React.useState(false);
+  const [isEditingTags, setIsEditingTags] = useState(false);
+  const [editTags, setEditTags] = useState<string[]>(document.tags || []);
+  const [newTag, setNewTag] = useState('');
   const dropdownRef = useRef<HTMLButtonElement>(null);
   const FileIcon = getFileIcon(document.type);
 
@@ -215,6 +224,51 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
     setShowDropdown(false);
   };
 
+  const handleEditTagsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsEditingTags(true);
+    setEditTags(document.tags || []);
+    setShowDropdown(false);
+  };
+
+  const handleSaveTags = async () => {
+    if (onUpdateTags) {
+      try {
+        await onUpdateTags(document.id, editTags);
+        setIsEditingTags(false);
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour des tags:', error);
+      }
+    }
+  };
+
+  const handleCancelEditTags = () => {
+    setIsEditingTags(false);
+    setEditTags(document.tags || []);
+    setNewTag('');
+  };
+
+  const handleAddTag = () => {
+    if (newTag.trim() && !editTags.includes(newTag.trim())) {
+      setEditTags([...editTags, newTag.trim()]);
+      setNewTag('');
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setEditTags(editTags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    } else if (e.key === 'Escape') {
+      handleCancelEditTags();
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -224,8 +278,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 
   const formatTagsDescription = (tags: string[]) => {
     if (tags.length === 0) return "Aucun tag";
-    if (tags.length <= 2) return `Tags: ${tags.join(', ')}`;
-    return `Tags: ${tags.slice(0, 2).join(', ')} et ${tags.length - 2} autres`;
+    return `Tags: ${tags.join(', ')}`;
   };
 
   if (viewMode === 'list') {
@@ -234,7 +287,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
         className={`group document-card-enhanced card card-compact shadow-sm hover:shadow-lg transition-shadow duration-200 ${showDropdown ? 'dropdown-active' : ''}`}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
-        aria-label={`Document ${document.name}, ${formatFileSize(document.size)}, ${document.category}`}
+        aria-label={`Document ${document.name}, ${formatFileSize(document.size)}, ${formatTagsDescription(document.tags)}`}
       >
         <div className="card-body">
           <div className="flex items-center justify-between">
@@ -262,21 +315,35 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                   <span className="hidden sm:inline" aria-label={`Date d'upload: ${formatDate(document.uploadDate)}`}>
                     {formatDate(document.uploadDate)}
                   </span>
-                  <span className="hidden md:inline" aria-hidden="true">•</span>
-                  <span className="capitalize hidden md:inline" aria-label={`Catégorie: ${document.category}`}>
-                    {document.category}
-                  </span>
+                  {document.tags.length > 0 && (
+                    <>
+                      <span className="hidden md:inline" aria-hidden="true">•</span>
+                      <div className="hidden md:flex flex-wrap gap-1">
+                        {document.tags.slice(0, 3).map((tag) => (
+                          <span 
+                            key={tag} 
+                            className="text-xs text-primary" 
+                            aria-label={`Tag: ${tag}`}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                        {document.tags.length > 3 && (
+                          <span className="text-xs text-base-content/60">
+                            +{document.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="hidden lg:flex items-center gap-2 flex-shrink-0" aria-label={formatTagsDescription(document.tags)}>
-                {document.tags.slice(0, 2).map((tag) => (
-                  <span key={tag} className="badge badge-ghost badge-sm whitespace-nowrap">
-                    {tag}
+              <div className="hidden lg:flex items-center gap-1 flex-wrap flex-shrink-0" aria-label={formatTagsDescription(document.tags)}>
+                {document.tags.map((tag) => (
+                  <span key={tag} className="badge badge-primary badge-sm whitespace-nowrap text-xs">
+                    #{tag}
                   </span>
                 ))}
-                {document.tags.length > 2 && (
-                  <span className="text-xs text-base-content/40">+{document.tags.length - 2}</span>
-                )}
               </div>
             </div>
             <div 
@@ -395,6 +462,24 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                         {document.archived ? 'Désarchiver' : 'Archiver'}
                       </button>
                     )}
+                    {onUpdateTags && (
+                      <button 
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleEditTagsClick(e);
+                        }}
+                        className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded" 
+                        role="menuitem" 
+                        style={{ 
+                          color: '#000000',
+                          pointerEvents: 'auto'
+                        }}
+                      >
+                        <Tag className="w-4 h-4" style={{ color: '#000000' }} />
+                        Modifier les tags
+                      </button>
+                    )}
                     <div className="border-t border-gray-200 my-1"></div>
                     <button 
                       onClick={handleDeleteClick} 
@@ -411,6 +496,78 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Interface d'édition des tags */}
+        {isEditingTags && (
+          <div className="p-4 border-t border-base-300 bg-base-50">
+            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Tag className="w-4 h-4" />
+              Modifier les tags
+            </h4>
+            
+            <div className="space-y-3">
+              {/* Tags actuels */}
+              <div className="flex flex-wrap gap-2">
+                {editTags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs"
+                  >
+                    #{tag}
+                    <button
+                      onClick={() => handleRemoveTag(tag)}
+                      className="hover:text-primary/80 ml-1"
+                      aria-label={`Supprimer le tag ${tag}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* Ajouter un nouveau tag */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-base-content/60">#</span>
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    className="input input-sm pl-6 pr-2 w-full"
+                    placeholder="nouveau tag"
+                    maxLength={20}
+                  />
+                </div>
+                <button
+                  onClick={handleAddTag}
+                  className="btn btn-sm btn-primary"
+                  disabled={!newTag.trim() || editTags.includes(newTag.trim())}
+                  aria-label="Ajouter le tag"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Boutons d'action */}
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancelEditTags}
+                  className="btn btn-sm btn-ghost"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveTags}
+                  className="btn btn-sm btn-primary"
+                >
+                  <Check className="w-4 h-4 mr-1" />
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </article>
     );
   }
@@ -420,7 +577,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
       className={`group document-card-enhanced card shadow-sm hover:shadow-xl transition-shadow duration-300 ${showDropdown ? 'dropdown-active' : ''}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
-      aria-label={`Document ${document.name}, ${formatFileSize(document.size)}, ${document.category}`}
+      aria-label={`Document ${document.name}, ${formatFileSize(document.size)}, ${formatTagsDescription(document.tags)}`}
     >
       <div className="card-body">
         <div className="flex justify-between items-start mb-3 sm:mb-4">
@@ -474,14 +631,11 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           </div>
           
           <div className="flex flex-wrap gap-1" aria-label={formatTagsDescription(document.tags)}>
-            {document.tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="badge badge-ghost badge-sm whitespace-nowrap">
-                {tag}
+            {document.tags.map((tag) => (
+              <span key={tag} className="badge badge-primary badge-sm whitespace-nowrap text-xs">
+                #{tag}
               </span>
             ))}
-            {document.tags.length > 2 && (
-              <span className="text-xs text-base-content/40">+{document.tags.length - 2}</span>
-            )}
           </div>
           
           <div 
@@ -605,6 +759,24 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                         {document.archived ? 'Désarchiver' : 'Archiver'}
                       </button>
                     )}
+                    {onUpdateTags && (
+                      <button 
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleEditTagsClick(e);
+                        }}
+                        className="flex items-center gap-2 text-left w-full p-2 hover:bg-gray-100 rounded" 
+                        role="menuitem" 
+                        style={{ 
+                          color: '#000000',
+                          pointerEvents: 'auto'
+                        }}
+                      >
+                        <Tag className="w-4 h-4" aria-hidden="true" style={{ color: '#000000' }} />
+                        Modifier les tags
+                      </button>
+                    )}
                     <div className="border-t border-gray-200 my-1"></div>
                     <button
                       onClick={handleDeleteClick}
@@ -619,11 +791,93 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                 )}
               </div>
             </div>
-            <span className="text-xs text-base-content/40 capitalize hidden sm:inline" aria-label={`Catégorie: ${document.category}`}>
-              {document.category}
-            </span>
+            {document.tags.length > 0 && (
+              <div className="hidden sm:flex flex-wrap gap-1">
+                {document.tags.map((tag) => (
+                  <span 
+                    key={tag} 
+                    className="badge badge-primary badge-xs text-xs" 
+                    aria-label={`Tag: ${tag}`}
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Interface d'édition des tags */}
+        {isEditingTags && (
+          <div className="p-4 border-t border-base-300 bg-base-50">
+            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Tag className="w-4 h-4" />
+              Modifier les tags
+            </h4>
+            
+            <div className="space-y-3">
+              {/* Tags actuels */}
+              <div className="flex flex-wrap gap-2">
+                {editTags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs"
+                  >
+                    #{tag}
+                    <button
+                      onClick={() => handleRemoveTag(tag)}
+                      className="hover:text-primary/80 ml-1"
+                      aria-label={`Supprimer le tag ${tag}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* Ajouter un nouveau tag */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-base-content/60">#</span>
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    className="input input-sm pl-6 pr-2 w-full"
+                    placeholder="nouveau tag"
+                    maxLength={20}
+                  />
+                </div>
+                <button
+                  onClick={handleAddTag}
+                  className="btn btn-sm btn-primary"
+                  disabled={!newTag.trim() || editTags.includes(newTag.trim())}
+                  aria-label="Ajouter le tag"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Boutons d'action */}
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancelEditTags}
+                  className="btn btn-sm btn-ghost"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveTags}
+                  className="btn btn-sm btn-primary"
+                >
+                  <Check className="w-4 h-4 mr-1" />
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </article>
   );

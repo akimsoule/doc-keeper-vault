@@ -73,7 +73,6 @@ export class UserService {
             id: true,
             name: true,
             type: true,
-            category: true,
             size: true,
             createdAt: true,
           }

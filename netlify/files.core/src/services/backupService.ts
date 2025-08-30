@@ -18,7 +18,6 @@ export interface BackupData {
     id: string;
     name: string;
     type: string;
-    category: string;
     size: number;
     description?: string;
     tags: string;
@@ -297,7 +296,6 @@ export class BackupService {
             update: {
               name: docData.name,
               type: docData.type,
-              category: docData.category,
               size: docData.size,
               description: docData.description,
               tags: docData.tags,
@@ -308,7 +306,6 @@ export class BackupService {
               id: docData.id,
               name: docData.name,
               type: docData.type,
-              category: docData.category,
               size: docData.size,
               description: docData.description,
               tags: docData.tags,

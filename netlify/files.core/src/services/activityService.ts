@@ -36,7 +36,6 @@ export class ActivityService {
             select: {
               name: true,
               type: true,
-              category: true,
               size: true
             }
           }
@@ -62,7 +61,6 @@ export class ActivityService {
           userAgent: log.userAgent,
           documentDetails: log.document ? {
             type: log.document.type,
-            category: log.document.category,
             size: log.document.size
           } : null,
           additionalDetails: log.details
@@ -100,7 +98,6 @@ export class ActivityService {
             select: {
               name: true,
               type: true,
-              category: true,
               size: true
             }
           },
@@ -136,7 +133,6 @@ export class ActivityService {
           } : null,
           documentDetails: log.document ? {
             type: log.document.type,
-            category: log.document.category,
             size: log.document.size
           } : null,
           additionalDetails: log.details
