@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid, List, Calendar, BarChart3 } from 'lucide-react';
+import { Grid, List } from 'lucide-react';
 import { ViewMode } from '../types';
 
 interface ViewControlsProps {
