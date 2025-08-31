@@ -124,10 +124,10 @@ export const FolderView: React.FC<FolderViewProps> = ({
     setFolderToEdit(null);
   };
 
-    const handleConfirmDeleteFolder = async () => {
+  const handleConfirmDeleteFolder = async () => {
     if (!folderToDelete) return;
     
-    await deleteFolder(folderToDelete.id);
+    await deleteFolder(folderToDelete.id, folderToDelete.name);
     setShowDeleteFolderModal(false);
     setFolderToDelete(null);
   };
@@ -266,19 +266,14 @@ export const FolderView: React.FC<FolderViewProps> = ({
                 <div key={document.id} className="relative group">
                   <DocumentCard
                     document={document}
-                    onToggleFavorite={(id) => {
-                      const doc = currentFolderDocuments.find(d => d.id === id);
-                      if (doc) {
-                        onDocumentUpdate({ ...doc, favorite: !doc.favorite });
-                      }
-                    }}
-                    onView={(id) => {
-                      const doc = currentFolderDocuments.find(d => d.id === id);
-                      if (doc) {
-                        onDocumentSelect(doc);
-                      }
-                    }}
                     viewMode={viewMode}
+                    onToggleFavorite={(doc) => {
+                      onDocumentUpdate({ ...doc, favorite: !doc.favorite });
+                    }}
+                    onPreview={(doc) => {
+                      onDocumentSelect(doc);
+                    }}
+                    onMove={handleMoveDocument}
                   />
                   
                   {/* Bouton de déplacement en overlay */}

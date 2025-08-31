@@ -27,6 +27,7 @@ interface BackendDocument {
   description?: string;
   hash: string;
   fileId: string;
+  folderId?: string; // ID du dossier parent
 }
 
 // Adaptateur pour convertir les documents du backend vers l'interface frontend
@@ -44,6 +45,7 @@ const adaptBackendDocument = (backendDoc: BackendDocument): Document => ({
   favorite: backendDoc.isFavorite,
   shared: false, // TODO: implémenter le partage dans le backend
   thumbnail: undefined, // TODO: implémenter les thumbnails
+  folderId: backendDoc.folderId || undefined, // Mapper le folderId
 });
 
 interface LoginResponse {
