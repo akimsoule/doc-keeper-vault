@@ -1,4 +1,4 @@
-import { Document } from "../types";
+import { Document, Folder } from "../types";
 import { Activity } from "../types";
 import { cacheService } from "./cacheService";
 
@@ -824,6 +824,139 @@ class ApiService {
    */
   startCacheAutoCleanup(intervalMs?: number): () => void {
     return cacheService.startAutoCleanup(intervalMs);
+  }
+
+  // === DOSSIERS ===
+
+  async getFolders(parentId?: string): Promise<Folder[]> {
+    const cacheKey = cacheService.generateKey('getFolders', { parentId });
+    const cached = cacheService.get<Folder[]>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
+    const searchParams = new URLSearchParams();
+    if (parentId) {
+      searchParams.append('parentId', parentId);
+    }
+
+    const url = `${this.baseUrl}/folders${searchParams.toString() ? `?${searchParams}` : ''}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    const result = await this.handleResponse<Folder[]>(response);
+    
+    // Mettre en cache le résultat
+    cacheService.set(cacheKey, result, cacheService.TTL.documents);
+    
+    return result;
+  }
+
+  async getFolder(id: string): Promise<Folder> {
+    const cacheKey = cacheService.generateKey('getFolder', { id });
+    const cached = cacheService.get<Folder>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
+    const response = await fetch(`${this.baseUrl}/folders/${id}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    const result = await this.handleResponse<Folder>(response);
+    
+    // Mettre en cache le résultat
+    cacheService.set(cacheKey, result, cacheService.TTL.document);
+    
+    return result;
+  }
+
+  async createFolder(data: {
+    name: string;
+    description?: string;
+    color?: string;
+    parentId?: string;
+  }): Promise<Folder> {
+    const response = await fetch(`${this.baseUrl}/folders`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    const result = await this.handleResponse<Folder>(response);
+    
+    // Invalider le cache des dossiers
+    cacheService.invalidate('getFolders');
+    
+    return result;
+  }
+
+  async updateFolder(id: string, data: {
+    name?: string;
+    description?: string;
+    color?: string;
+    parentId?: string;
+  }): Promise<Folder> {
+    const response = await fetch(`${this.baseUrl}/folders/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    const result = await this.handleResponse<Folder>(response);
+    
+    // Invalider le cache des dossiers
+    cacheService.invalidate('getFolders');
+    cacheService.invalidateKey(cacheService.generateKey('getFolder', { id }));
+    
+    return result;
+  }
+
+  async deleteFolder(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${this.baseUrl}/folders/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+
+    const result = await this.handleResponse<{ message: string }>(response);
+    
+    // Invalider le cache des dossiers
+    cacheService.invalidate('getFolders');
+    cacheService.invalidateKey(cacheService.generateKey('getFolder', { id }));
+    
+    return result;
+  }
+
+  async moveDocumentToFolder(documentId: string, folderId?: string): Promise<Document> {
+    const response = await fetch(`${this.baseUrl}/folders/move-document`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ documentId, folderId }),
+    });
+
+    const backendDocument = await this.handleResponse<BackendDocument>(response);
+    
+    // Invalider le cache des documents et dossiers
+    cacheService.invalidate('getDocuments');
+    cacheService.invalidate('getFolders');
+    cacheService.invalidateKey(cacheService.generateKey('getDocument', { id: documentId }));
+    
+    return adaptBackendDocument(backendDocument);
+  }
+
+  async getFolderPath(id: string): Promise<{ path: string }> {
+    const response = await fetch(`${this.baseUrl}/folders/${id}/path`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<{ path: string }>(response);
   }
 
   /**

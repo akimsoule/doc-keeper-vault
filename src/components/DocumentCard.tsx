@@ -5,7 +5,9 @@ import {
   Video, 
   Music, 
   Archive,
-  Star
+  Star,
+  MoreVertical,
+  FolderInput
 } from 'lucide-react';
 import { Document } from '../types';
 import { formatFileSize, formatDate } from '../utils/formatters';
@@ -14,6 +16,7 @@ interface DocumentCardProps {
   document: Document;
   onToggleFavorite: (id: string) => void;
   onView: (id: string) => void;
+  onMove?: (document: Document) => void;
   viewMode: 'grid' | 'list';
 }
 
@@ -29,9 +32,11 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   document,
   onToggleFavorite,
   onView,
+  onMove,
   viewMode,
 }) => {
   const [showActions, setShowActions] = React.useState(false);
+  const [showMenu, setShowMenu] = React.useState(false);
   const FileIcon = getFileIcon(document.type);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -120,11 +125,29 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                   className={`w-4 h-4 ${document.favorite ? 'fill-current text-yellow-500' : 'text-base-content/60'}`} 
                 />
               </button>
+              
+              {/* Bouton Déplacer */}
+              {onMove && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMove(document);
+                  }}
+                  className={`btn btn-ghost btn-sm transition-opacity duration-200 ${
+                    showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'
+                  }`}
+                  aria-label="Déplacer vers un dossier"
+                  title="Déplacer vers un dossier"
+                >
+                  <FolderInput className="w-4 h-4 text-base-content/60" />
+                </button>
+              )}
             </div>
           </div>
         </div>
-      </article>
-    );
+      </div>
+    </article>
+  );
   }
 
   // Vue grille
@@ -152,20 +175,39 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             </div>
           </div>
           
-          {/* Bouton Favoris */}
-          <button
-            onClick={handleFavoriteClick}
-            className={`btn btn-ghost btn-sm transition-opacity duration-200 ${
-              showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'
-            }`}
-            aria-label={document.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            title={document.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          >
-            <Star 
-              className={`w-4 h-4 ${document.favorite ? 'fill-current text-yellow-500' : 'text-base-content/60'}`} 
-            />
-          </button>
+          {/* Boutons d'action */}
+          <div className="flex gap-1">
+            <button
+              onClick={handleFavoriteClick}
+              className={`btn btn-ghost btn-sm transition-opacity duration-200 ${
+                showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'
+              }`}
+              aria-label={document.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              title={document.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            >
+              <Star 
+                className={`w-4 h-4 ${document.favorite ? 'fill-current text-yellow-500' : 'text-base-content/60'}`} 
+              />
+            </button>
+            
+            {onMove && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMove(document);
+                }}
+                className={`btn btn-ghost btn-sm transition-opacity duration-200 ${
+                  showActions ? 'opacity-100' : 'opacity-0 sm:opacity-100'
+                }`}
+                aria-label="Déplacer vers un dossier"
+                title="Déplacer vers un dossier"
+              >
+                <FolderInput className="w-4 h-4 text-base-content/60" />
+              </button>
+            )}
+          </div>
         </div>
+        
 
         <div className="space-y-2">
           <h3 className="font-medium text-base-content line-clamp-2" title={document.name}>

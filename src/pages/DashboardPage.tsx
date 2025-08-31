@@ -1,10 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Files, BarChart3, HelpCircle, Cloud, Loader2 } from "lucide-react";
+import { BarChart3, HelpCircle, Cloud, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { SearchBar } from "../components/SearchBar";
 import { TagFilter } from "../components/TagFilter";
-import { DocumentCard } from "../components/DocumentCard";
 import { UploadArea } from "../components/UploadArea";
 import { ViewControls } from "../components/ViewControls";
 import { DocumentPreviewModal } from "../components/DocumentPreviewModal";
@@ -12,6 +11,7 @@ import { Pagination } from "../components/Pagination";
 import { ErrorMessage } from "../components/ErrorBoundary";
 import { LoadingSkeleton } from "../components/Loading";
 import { KeyboardShortcutsHelp } from "../components/SwipeGesture";
+import { FolderView } from "../components/FolderView";
 import { useDocuments } from "../hooks/useDocuments";
 import { useViewMode } from "../hooks/useViewMode";
 import { useErrorHandler } from "../hooks/useErrorHandler";
@@ -41,6 +41,7 @@ export const DashboardPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [archivedCount, setArchivedCount] = useState(0);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [allNonArchivedDocuments, setAllNonArchivedDocuments] = useState<
     DocumentType[]
   >([]);
@@ -554,6 +555,17 @@ export const DashboardPage = () => {
     // Le filtrage se fait automatiquement dans le useMemo
   };
 
+  // Fonctions wrapper pour FolderView
+  const handleDocumentSelect = (document: DocumentType) => {
+    handleViewDocument(document.id);
+  };
+
+  const handleDocumentUpdate = (_document: DocumentType) => {
+    // FolderView ne prend qu'un document en paramètre, mais updateDocument attend id + data
+    // Pour l'instant, on peut juste recharger les documents
+    loadDocuments();
+  };
+
   return (
     <>
       {/* Header avec liens et bouton d'aide */}
@@ -655,58 +667,16 @@ export const DashboardPage = () => {
         />
       )}
 
-      {/* Documents Grid */}
+      {/* Folder View */}
       {!documentsLoading && (
-        <>
-          {filteredDocuments.length > 0 ? (
-            <div
-              className={`${
-                viewMode === "grid"
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                  : "space-y-3"
-              }`}
-            >
-              {filteredDocuments.map((document) => (
-                <DocumentCard
-                  key={document.id}
-                  document={document}
-                  onToggleFavorite={handleToggleFavorite}
-                  onView={handleViewDocument}
-                  viewMode={viewMode}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="hero min-h-96">
-              <div className="hero-content text-center">
-                <div>
-                  <div className="flex justify-center mb-4">
-                    <div className="bg-base-200 text-base-content/40 rounded-full w-24 h-24 flex items-center justify-center">
-                      <Files className="w-8 h-8" />
-                    </div>
-                  </div>
-                  <h3 className="text-lg font-bold text-base-content mb-2">
-                    Aucun document trouvé
-                  </h3>
-                  <p className="text-base-content/60 mb-6">
-                    Essayez de modifier vos critères de recherche ou ajoutez des
-                    documents.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSearchTerm("");
-                      setSelectedTags([]);
-                      loadDocuments();
-                    }}
-                    className="btn btn-primary"
-                  >
-                    Réinitialiser les filtres
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
+        <FolderView
+          documents={filteredDocuments}
+          onDocumentSelect={handleDocumentSelect}
+          onDocumentUpdate={handleDocumentUpdate}
+          currentFolderId={currentFolderId}
+          onFolderChange={setCurrentFolderId}
+          viewMode={viewMode}
+        />
       )}
 
       {/* Pagination */}

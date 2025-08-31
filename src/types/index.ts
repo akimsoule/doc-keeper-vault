@@ -10,6 +10,31 @@ export interface Document {
   thumbnail?: string;
   favorite: boolean;
   shared: boolean;
+  folderId?: string; // ID du dossier parent (null si à la racine)
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  parentId?: string;
+  ownerId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  documentCount: number;
+  folderCount: number;
+  totalSize: number;
+  parent?: {
+    id: string;
+    name: string;
+  };
+  children?: Folder[];
+}
+
+export interface FolderPath {
+  id: string;
+  name: string;
 }
 
 export interface Tag {

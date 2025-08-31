@@ -17,7 +17,26 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   documents    Document[]
+  folders      Folder[]
   logs         Log[]      @relation("UserLogs")
+}
+
+model Folder {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  color       String?    @default("#3B82F6") // Couleur du dossier (hex)
+  owner       User       @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  parent      Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id])
+  parentId    String?
+  children    Folder[]   @relation("FolderHierarchy")
+  documents   Document[]
+  logs        Log[]      @relation("FolderLogs")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("folders")
 }
 
 model Document {
@@ -31,6 +50,8 @@ model Document {
   hash        String     @unique
   owner       User       @relation(fields: [ownerId], references: [id])
   ownerId     String
+  folder      Folder?    @relation(fields: [folderId], references: [id])
+  folderId    String?    // Le document peut être dans un dossier ou à la racine
   isFavorite  Boolean    @default(false)
   createdAt   DateTime   @default(now())
   modifiedAt  DateTime   @updatedAt
@@ -42,7 +63,7 @@ model Document {
 model Log {
   id          String    @id @default(uuid())
   action      String    // CREATE, UPDATE, DELETE, UPLOAD, DOWNLOAD, etc.
-  entity      String    // USER, DOCUMENT
+  entity      String    // USER, DOCUMENT, FOLDER
   entityId    String    // ID of the affected entity
   details     String?   // Additional details about the action
   ipAddress   String?
@@ -51,6 +72,8 @@ model Log {
   userId      String?
   document    Document? @relation("DocumentLogs", fields: [documentId], references: [id])
   documentId  String?
+  folder      Folder?   @relation("FolderLogs", fields: [folderId], references: [id])
+  folderId    String?
   createdAt   DateTime  @default(now())
 
   @@map("logs")
