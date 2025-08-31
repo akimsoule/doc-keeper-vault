@@ -189,7 +189,9 @@ export class BackupService {
       const megaFileId = await this.megaStorageService.uploadFile(
         fileName,
         'application/json',
-        buffer
+        buffer,
+        undefined,
+        userId
       );
 
       const duration = Date.now() - startTime;
@@ -242,7 +244,7 @@ export class BackupService {
 
     try {
       // Téléchargement de la sauvegarde
-      const backupBuffer = await this.megaStorageService.downloadFile(megaFileId);
+      const backupBuffer = await this.megaStorageService.downloadFile(megaFileId, userId);
       const backupData: BackupData = JSON.parse(backupBuffer.toString('utf8'));
 
       const restored = {
@@ -381,14 +383,14 @@ export class BackupService {
   /**
    * Liste les sauvegardes disponibles sur MEGA
    */
-  async listBackups(): Promise<Array<{
+  async listBackups(userId: string): Promise<Array<{
     fileId: string;
     name: string;
     size: number;
     date: Date;
   }>> {
     try {
-      const files = await this.megaStorageService.getAllFilesWithContent();
+      const files = await this.megaStorageService.getAllFilesWithContent(userId);
       
       return files
         .filter(file => file.name.startsWith('backup-') && file.name.endsWith('.json'))
@@ -409,7 +411,7 @@ export class BackupService {
    */
   async deleteBackup(megaFileId: string, userId: string): Promise<void> {
     try {
-      await this.megaStorageService.deleteFile(megaFileId);
+      await this.megaStorageService.deleteFile(megaFileId, userId);
 
       await this.logService.log({
         action: 'SYSTEM_BACKUP',
@@ -426,7 +428,7 @@ export class BackupService {
   /**
    * Valide l'intégrité d'une sauvegarde
    */
-  async validateBackup(megaFileId: string): Promise<{
+  async validateBackup(megaFileId: string, userId: string): Promise<{
     valid: boolean;
     errors: string[];
     metadata?: {
@@ -439,7 +441,7 @@ export class BackupService {
     const errors: string[] = [];
 
     try {
-      const backupBuffer = await this.megaStorageService.downloadFile(megaFileId);
+      const backupBuffer = await this.megaStorageService.downloadFile(megaFileId, userId);
       const backupData: BackupData = JSON.parse(backupBuffer.toString('utf8'));
 
       // Validation de la structure

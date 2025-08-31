@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { User, Shield, Bell, HelpCircle, Settings } from 'lucide-react';
+import { User, Shield, Bell, HelpCircle, Settings, Cloud } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { UserPreferencesSettings } from '../components/UserPreferencesSettings';
+import MegaConfigurationSettings from '../components/MegaConfigurationSettings';
 
 export const ProfilePage = () => {
   const { user } = useAuth();
@@ -56,6 +57,7 @@ export const ProfilePage = () => {
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'security', label: 'Sécurité', icon: Shield },
+    { id: 'mega', label: 'MEGA', icon: Cloud },
     { id: 'preferences', label: 'Préférences', icon: Settings },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'help', label: 'Aide', icon: HelpCircle },
@@ -267,6 +269,14 @@ export const ProfilePage = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Onglet MEGA */}
+            {activeTab === 'mega' && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-base-content">Configuration MEGA</h2>
+                <MegaConfigurationSettings />
               </div>
             )}
 

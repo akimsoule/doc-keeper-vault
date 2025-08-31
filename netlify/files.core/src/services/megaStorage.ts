@@ -1,36 +1,63 @@
 import { Storage, verify } from 'megajs';
+import { userMegaConfigService } from './userMegaConfigService';
 
 /**
- * Service de gestion des fichiers sur MEGA
+ * Service de gestion des fichiers sur MEGA avec support multi-utilisateur
  */
 export class MegaStorageService {
-  private storage: Storage | undefined;
-  private email = process.env.MEGA_EMAIL!;
-  private password = process.env.MEGA_PASSWORD!;
+  private storageCache = new Map<string, Storage>();
+  private defaultEmail = process.env.MEGA_EMAIL;
+  private defaultPassword = process.env.MEGA_PASSWORD;
 
   /**
-   * Initialise la connexion MEGA
+   * Initialise la connexion MEGA pour un utilisateur spécifique
    */
-  private async getStorage(): Promise<Storage> {
-    if (!this.storage) {
-      if (!this.email || !this.password) {
-        throw new Error('Identifiants MEGA requis');
+  private async getStorage(userId?: string): Promise<Storage> {
+    let storageKey = 'default';
+    let email = this.defaultEmail;
+    let password = this.defaultPassword;
+
+    // Si un userId est fourni, utiliser sa configuration
+    if (userId) {
+      const credentials = await userMegaConfigService.getUserMegaCredentials(userId);
+      if (credentials) {
+        storageKey = userId;
+        email = credentials.email;
+        password = credentials.password;
       }
-      this.storage = await new Storage({ 
-        email: this.email, 
-        password: this.password 
-      }).ready;
     }
-    return this.storage;
+
+    // Vérifier le cache
+    if (this.storageCache.has(storageKey)) {
+      return this.storageCache.get(storageKey)!;
+    }
+
+    // Vérifier que les credentials sont disponibles
+    if (!email || !password) {
+      throw new Error('Identifiants MEGA requis - configurez votre compte MEGA dans vos paramètres');
+    }
+
+    try {
+      const storage = await new Storage({ 
+        email, 
+        password 
+      }).ready;
+      
+      this.storageCache.set(storageKey, storage);
+      return storage;
+    } catch (error) {
+      throw new Error(`Erreur de connexion MEGA: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
   }
 
   /**
    * Génère une URL de téléchargement temporaire pour un fichier
    * @param fileId - L'ID du fichier sur MEGA
+   * @param userId - ID de l'utilisateur (optionnel, utilise la config par défaut si non fourni)
    * @returns Une URL temporaire valide pendant 1 heure
    */
-  async getFileUrl(fileId: string): Promise<string> {
-    const storage = await this.getStorage();
+  async getFileUrl(fileId: string, userId?: string): Promise<string> {
+    const storage = await this.getStorage(userId);
     const file = storage.find(f => f.nodeId === fileId);
     if (!file) throw new Error('Fichier non trouvé');
     
@@ -44,10 +71,11 @@ export class MegaStorageService {
   /**
    * Génère une URL data base64 pour un fichier
    * @param fileId - L'ID du fichier sur MEGA
+   * @param userId - ID de l'utilisateur (optionnel, utilise la config par défaut si non fourni)
    * @returns Une URL data en base64
    */
-  async getBase64FileUrl(fileId: string): Promise<string> {
-    const storage = await this.getStorage();
+  async getBase64FileUrl(fileId: string, userId?: string): Promise<string> {
+    const storage = await this.getStorage(userId);
     const file = storage.find(f => f.nodeId === fileId);
     if (!file) throw new Error('Fichier non trouvé');
 
@@ -93,15 +121,17 @@ export class MegaStorageService {
    * @param mimeType - Type MIME du fichier
    * @param buffer - Contenu du fichier
    * @param folderId - ID du dossier de destination (optionnel)
+   * @param userId - ID de l'utilisateur (optionnel, utilise la config par défaut si non fourni)
    * @returns ID du fichier uploadé
    */
   async uploadFile(
     name: string,
     mimeType: string,
     buffer: Buffer,
-    folderId?: string
+    folderId?: string,
+    userId?: string
   ): Promise<string> {
-    const storage = await this.getStorage();
+    const storage = await this.getStorage(userId);
     const folder = folderId
       ? storage.find(file => file.nodeId === folderId) || storage.root
       : storage.root;
@@ -118,10 +148,11 @@ export class MegaStorageService {
   /**
    * Suppression d'un fichier
    * @param fileId - ID du fichier à supprimer
+   * @param userId - ID de l'utilisateur
    * @param folderId - ID du dossier où chercher (optionnel, si non fourni cherche dans tout le compte)
    */
-  async deleteFile(fileId: string, folderId?: string): Promise<void> {
-    const storage = await this.getStorage();
+  async deleteFile(fileId: string, userId: string, folderId?: string): Promise<void> {
+    const storage = await this.getStorage(userId);
     
     let searchFiles: Array<{ nodeId: string; name?: string; delete?: () => Promise<void> }>;
     
@@ -164,10 +195,11 @@ export class MegaStorageService {
   /**
    * Téléchargement d'un fichier
    * @param fileId - ID du fichier à télécharger
+   * @param userId - ID de l'utilisateur (optionnel, utilise la config par défaut si non fourni)
    * @returns Buffer contenant le fichier
    */
-  async downloadFile(fileId: string): Promise<Buffer> {
-    const storage = await this.getStorage();
+  async downloadFile(fileId: string, userId?: string): Promise<Buffer> {
+    const storage = await this.getStorage(userId);
     const file = storage.find(f => f.nodeId === fileId);
     if (!file) throw new Error('Fichier non trouvé');
 
@@ -185,15 +217,17 @@ export class MegaStorageService {
    * @param name - Nouveau nom du fichier
    * @param mimeType - Type MIME du nouveau fichier
    * @param buffer - Nouveau contenu du fichier
+   * @param userId - ID de l'utilisateur (optionnel, utilise la config par défaut si non fourni)
    * @returns ID du nouveau fichier
    */
   async updateFile(
     fileId: string,
     name: string,
     mimeType: string,
-    buffer: Buffer
+    buffer: Buffer,
+    userId?: string
   ): Promise<string> {
-    const storage = await this.getStorage();
+    const storage = await this.getStorage(userId);
     const oldFile = storage.find(f => f.nodeId === fileId);
     if (!oldFile) throw new Error('Fichier à mettre à jour non trouvé');
 
@@ -212,10 +246,11 @@ export class MegaStorageService {
   /**
    * Récupère tous les fichiers de MEGA avec leur contenu.
    * @param folderId - ID du dossier à scanner (optionnel, par défaut le dossier racine)
+   * @param userId - ID de l'utilisateur (optionnel, utilise la config par défaut si non fourni)
    * @returns Un tableau d'objets contenant les informations et le buffer de chaque fichier.
    */
-  async getAllFilesWithContent(folderId?: string): Promise<{ fileId: string; name: string; buffer: Buffer; type: string; mimeType: string; size: number }[]> {
-    const storage = await this.getStorage();
+  async getAllFilesWithContent(folderId?: string, userId?: string): Promise<{ fileId: string; name: string; buffer: Buffer; type: string; mimeType: string; size: number }[]> {
+    const storage = await this.getStorage(userId);
     
     let targetFolder;
     if (folderId) {
@@ -279,10 +314,11 @@ export class MegaStorageService {
    * Crée un dossier sur MEGA
    * @param name - Nom du dossier
    * @param parentFolderId - ID du dossier parent (optionnel, par défaut le dossier racine)
+   * @param userId - ID de l'utilisateur (optionnel, utilise la config par défaut si non fourni)
    * @returns ID du dossier créé
    */
-  async createFolder(name: string, parentFolderId?: string): Promise<string> {
-    const storage = await this.getStorage();
+  async createFolder(name: string, parentFolderId?: string, userId?: string): Promise<string> {
+    const storage = await this.getStorage(userId);
     const parentFolder = parentFolderId 
       ? storage.find(f => f.nodeId === parentFolderId) || storage.root
       : storage.root;
@@ -292,5 +328,20 @@ export class MegaStorageService {
       throw new Error('Impossible de créer le dossier');
     }
     return folder.nodeId;
+  }
+
+  /**
+   * Nettoie le cache de connexion pour un utilisateur spécifique
+   * @param userId - ID de l'utilisateur
+   */
+  clearUserCache(userId: string): void {
+    this.storageCache.delete(userId);
+  }
+
+  /**
+   * Nettoie tout le cache de connexions
+   */
+  clearAllCache(): void {
+    this.storageCache.clear();
   }
 }

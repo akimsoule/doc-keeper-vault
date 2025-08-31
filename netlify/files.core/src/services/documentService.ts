@@ -197,7 +197,8 @@ export class DocumentService {
         name,
         mimeType,
         fileBuffer,
-        data.testFolderId
+        data.testFolderId,
+        ownerId
       );
       fileSize = fileBuffer.length;
     } else if (data.file) {
@@ -206,7 +207,8 @@ export class DocumentService {
         data.file.name,
         data.file.mimeType,
         fileBuffer,
-        data.testFolderId
+        data.testFolderId,
+        ownerId
       );
       fileSize = fileBuffer.length;
     }
@@ -540,7 +542,7 @@ export class DocumentService {
     // Suppression du fichier sur MEGA
     if (document.fileId) {
       try {
-        await this.megaStorageService.deleteFile(document.fileId, folderId);
+        await this.megaStorageService.deleteFile(document.fileId, document.ownerId, folderId);
         console.log(`🗑️ Fichier MEGA supprimé: ${document.fileId}`);
       } catch (error) {
         console.warn(`⚠️ Impossible de supprimer le fichier MEGA (${document.fileId}): ${error instanceof Error ? error.message : error}`);
@@ -570,7 +572,8 @@ export class DocumentService {
     }
 
     const fileBuffer = await this.megaStorageService.downloadFile(
-      document.fileId
+      document.fileId,
+      document.ownerId
     );
 
     await this.logService.log({
@@ -602,7 +605,7 @@ export class DocumentService {
       throw new Error("Aucun fichier associé à ce document");
     }
 
-    const url = await this.megaStorageService.getFileUrl(document.fileId);
+    const url = await this.megaStorageService.getFileUrl(document.fileId, document.ownerId);
 
     await this.logService.log({
       action: "DOCUMENT_DOWNLOAD",
@@ -647,7 +650,7 @@ export class DocumentService {
    */
   async synchronizeMegaFiles(defaultOwnerId: string, folderId?: string) {
     console.log(`🔄 Démarrage de la synchronisation des fichiers MEGA${folderId ? ' (dossier spécifique)' : ' (compte complet)'}...`);
-    const megaFiles = await this.megaStorageService.getAllFilesWithContent(folderId);
+    const megaFiles = await this.megaStorageService.getAllFilesWithContent(defaultOwnerId, folderId);
     console.log(`🔍 ${megaFiles.length} fichiers trouvés sur MEGA.`);
 
     const allDocuments = await prisma.document.findMany({ 

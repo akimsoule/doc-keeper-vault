@@ -66,7 +66,7 @@ async function handleFileDownload(documentId: string, downloadType: string, user
 
     try {
       // Toujours récupérer le contenu en base64 pour éviter d'exposer les URLs MEGA
-      const dataUrl = await megaStorageService.getBase64FileUrl(document.fileId);
+      const dataUrl = await megaStorageService.getBase64FileUrl(document.fileId, document.ownerId);
       
       return createSuccessResponse({
         documentId: document.id,
