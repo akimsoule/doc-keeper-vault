@@ -25,6 +25,7 @@ export interface Folder {
   documentCount: number;
   folderCount: number;
   totalSize: number;
+  tags?: string[]; // Tags du dossier (pour l'archivage, etc.)
   parent?: {
     id: string;
     name: string;

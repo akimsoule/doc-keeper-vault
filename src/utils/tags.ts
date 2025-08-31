@@ -2,7 +2,7 @@
  * Utilitaires pour les tags
  */
 
-import { Document } from '../types';
+import { Document, Folder } from '../types';
 
 export interface TagWithStats {
   name: string;
@@ -15,6 +15,13 @@ export interface TagWithStats {
  */
 export const isDocumentArchived = (document: Document): boolean => {
   return document.tags.includes('archived');
+};
+
+/**
+ * Vérifie si un dossier est archivé (contient le tag "archived")
+ */
+export const isFolderArchived = (folder: Folder): boolean => {
+  return folder.tags ? folder.tags.includes('archived') : false;
 };
 
 /**

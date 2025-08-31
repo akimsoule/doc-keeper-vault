@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, ArrowLeft, Folder as FolderIcon, FileText, FolderInput } from 'lucide-react';
 import { Folder, Document } from '../types';
 import { FolderCard } from './FolderCard';
@@ -23,6 +24,7 @@ interface FolderViewProps {
   currentFolderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
   viewMode?: 'grid' | 'list';
+  folders?: Folder[]; // Dossiers optionnels pour le filtrage externe
 }
 
 export const FolderView: React.FC<FolderViewProps> = ({
@@ -30,19 +32,23 @@ export const FolderView: React.FC<FolderViewProps> = ({
   onDocumentSelect,
   onDocumentUpdate,
   currentFolderId,
-  onFolderChange,
+  onFolderChange: _onFolderChange,
   viewMode = 'grid',
+  folders: externalFolders,
 }) => {
   const {
-    folders,
+    folders: internalFolders,
     currentFolder,
     loading,
     loadFolders,
     createFolder,
     updateFolder,
     deleteFolder,
-    navigateToFolder,
+    navigateToFolder: _navigateToFolder,
   } = useFolders();
+
+  // Utiliser les dossiers externes s'ils sont fournis, sinon les dossiers internes
+  const folders = externalFolders || internalFolders;
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteFolderModal, setShowDeleteFolderModal] = useState(false);
@@ -62,9 +68,12 @@ export const FolderView: React.FC<FolderViewProps> = ({
   });
 
   // Charger les dossiers au montage et lors du changement de dossier courant
+  // Seulement si on n'a pas de dossiers externes
   useEffect(() => {
-    loadFolders(currentFolderId || undefined);
-  }, [currentFolderId, loadFolders]);
+    if (!externalFolders) {
+      loadFolders(currentFolderId || undefined);
+    }
+  }, [currentFolderId, loadFolders, externalFolders]);
 
   // Construire le chemin de navigation
   useEffect(() => {
@@ -87,23 +96,6 @@ export const FolderView: React.FC<FolderViewProps> = ({
 
     buildPath();
   }, [currentFolder]);
-
-  const handleFolderOpen = (folder: Folder) => {
-    const newFolderId = folder.id;
-    navigateToFolder(newFolderId);
-    onFolderChange?.(newFolderId);
-  };
-
-  const handleNavigate = (folderId: string | null) => {
-    navigateToFolder(folderId);
-    onFolderChange?.(folderId);
-  };
-
-  const handleBackToParent = () => {
-    const parentId = currentFolder?.parentId || null;
-    navigateToFolder(parentId);
-    onFolderChange?.(parentId);
-  };
 
   const handleCreateFolder = async (data: {
     name: string;
@@ -168,19 +160,18 @@ export const FolderView: React.FC<FolderViewProps> = ({
       <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
           {currentFolder && (
-            <button
-              onClick={handleBackToParent}
+            <Link
+              to={currentFolder.parentId ? `/dashboard/folder/${currentFolder.parentId}` : '/dashboard'}
               className="btn btn-outline btn-sm gap-1 sm:gap-2 flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Retour</span>
-            </button>
+            </Link>
           )}
           
           <div className="min-w-0 flex-1">
             <BreadcrumbNavigation
               path={breadcrumbPath}
-              onNavigate={handleNavigate}
             />
           </div>
         </div>
@@ -248,7 +239,6 @@ export const FolderView: React.FC<FolderViewProps> = ({
                 <FolderCard
                   key={folder.id}
                   folder={folder}
-                  onOpen={handleFolderOpen}
                   onEdit={setFolderToEdit}
                   onDelete={setFolderToDelete}
                   viewMode={viewMode}

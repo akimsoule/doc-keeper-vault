@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { FolderPage } from './pages/FolderPage';
 import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import './App.css';
@@ -30,31 +31,43 @@ function App() {
                 <Layout>
                   <DashboardPage />
                 </Layout>
-            </ProtectedRoute>
-          }
-        />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Route pour les dossiers */}
+          <Route
+            path="/dashboard/folder/:folderId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <FolderPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
         
-        <Route
-          path="/dashboard/profile"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <ProfilePage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/dashboard/profile"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProfilePage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
         
-        <Route
-          path="/dashboard/stats"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <StatsPage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/dashboard/stats"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StatsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
         
         {/* Redirection par défaut pour les routes non trouvées */}
         <Route path="*" element={<HomePage />} />

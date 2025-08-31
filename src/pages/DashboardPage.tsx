@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { BarChart3, HelpCircle, Cloud, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { SearchBar } from "../components/SearchBar";
 import { TagFilter } from "../components/TagFilter";
@@ -37,6 +37,16 @@ tokenManager.registerService(documentService);
 tokenManager.registerService(tagFileService);
 
 export const DashboardPage = () => {
+  const navigate = useNavigate();
+  
+  // Fonction pour naviguer vers un dossier
+  const handleFolderChange = useCallback((folderId: string | null) => {
+    if (folderId) {
+      navigate(`/dashboard/folder/${folderId}`);
+    }
+    // Si folderId est null, on reste sur le dashboard (racine)
+  }, [navigate]);
+  
   // Hook pour gérer le mode de vue avec localStorage
   const { viewMode, setViewMode } = useViewMode();
 
@@ -52,7 +62,6 @@ export const DashboardPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [archivedCount, setArchivedCount] = useState(0);
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [allNonArchivedDocuments, setAllNonArchivedDocuments] = useState<
     DocumentType[]
   >([]);
@@ -538,6 +547,7 @@ export const DashboardPage = () => {
       else if (file.type.includes("sheet") || file.type.includes("excel"))
         category = "tableaux";
 
+      // Upload dans la racine (pas de folderId)
       return uploadDocument(file, {
         category,
         tags: ["nouveau"],
@@ -684,8 +694,8 @@ export const DashboardPage = () => {
           documents={filteredDocuments}
           onDocumentSelect={handleDocumentSelect}
           onDocumentUpdate={handleDocumentUpdate}
-          currentFolderId={currentFolderId}
-          onFolderChange={setCurrentFolderId}
+          currentFolderId={null}
+          onFolderChange={handleFolderChange}
           viewMode={viewMode}
         />
       )}
