@@ -102,12 +102,17 @@ export class SearchService {
     // Filtres spécifiques
     if (tag) {
       where.tags = { contains: tag, mode: 'insensitive' as const };
-    }
-    if (tags && tags.length > 0) {
+    } else if (tags && tags.length > 0) {
       where.AND = tags.map(t => ({
         tags: { contains: t, mode: 'insensitive' as const }
       }));
+    } else {
+      // PAR DÉFAUT : exclure les documents archivés si aucun tag spécifique n'est demandé
+      where.NOT = {
+        tags: { contains: "archived" }
+      };
     }
+    
     if (type) where.type = type;
     if (ownerId) where.ownerId = ownerId;
     if (isFavorite !== undefined) where.isFavorite = isFavorite;
@@ -129,14 +134,6 @@ export class SearchService {
     // Filtre par email du propriétaire
     if (ownerEmail) {
       where.owner = { email: { equals: ownerEmail, mode: 'insensitive' as const } };
-    }
-
-    // Filtre par tags
-    if (tags && tags.length > 0) {
-      const tagConditions = tags.map(tag => ({
-        tags: { contains: tag, mode: 'insensitive' as const }
-      }));
-      where.AND = tagConditions;
     }
 
     // Ordre de tri

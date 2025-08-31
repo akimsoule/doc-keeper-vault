@@ -332,6 +332,11 @@ export class DocumentService {
     } else if (filters?.tag) {
       // Filtrage par tag unique - rechercher dans la chaîne de tags
       where.tags = { contains: filters.tag };
+    } else {
+      // PAR DÉFAUT : exclure les documents archivés si aucun tag spécifique n'est demandé
+      where.NOT = {
+        tags: { contains: "archived" }
+      };
     }
     
     if (filters?.search) {
@@ -376,6 +381,11 @@ export class DocumentService {
     } else if (filters?.tag) {
       // Filtrage par tag unique - rechercher dans la chaîne de tags
       where.tags = { contains: filters.tag };
+    } else {
+      // PAR DÉFAUT : exclure les documents archivés si aucun tag spécifique n'est demandé
+      where.NOT = {
+        tags: { contains: "archived" }
+      };
     }
     
     if (filters?.search) {
