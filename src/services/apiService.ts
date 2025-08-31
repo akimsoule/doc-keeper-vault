@@ -1,90 +1,11 @@
-import { Document, Folder } from "../types";
-import { Activity } from "../types";
-import { cacheService } from "./cacheService";
-
-// Types API
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Document du backend (avec isFavorite)
-interface BackendDocument {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  tags: string;
-  ownerId: string;
-  isFavorite: boolean;
-  archived?: boolean;
-  archivedAt?: string;
-  createdAt: string;
-  modifiedAt: string;
-  description?: string;
-  hash: string;
-  fileId: string;
-  folderId?: string; // ID du dossier parent
-}
-
-// Adaptateur pour convertir les documents du backend vers l'interface frontend
-const adaptBackendDocument = (backendDoc: BackendDocument): Document => ({
-  id: backendDoc.id,
-  name: backendDoc.name,
-  type: backendDoc.type,
-  size: backendDoc.size,
-  tags: backendDoc.tags
-    ? backendDoc.tags.split(",").filter((tag) => tag.trim())
-    : [],
-  uploadDate: new Date(backendDoc.createdAt),
-  lastModified: new Date(backendDoc.modifiedAt),
-  url: `/.netlify/functions/documents/${backendDoc.id}/download`,
-  favorite: backendDoc.isFavorite,
-  shared: false, // TODO: implémenter le partage dans le backend
-  thumbnail: undefined, // TODO: implémenter les thumbnails
-  folderId: backendDoc.folderId || undefined, // Mapper le folderId
-});
-
-interface LoginResponse {
-  message: string;
-  token: string;
-  user: User;
-}
-
-interface SearchResult {
-  query: string;
-  results: BackendDocument[];
-  total: number;
-  searchTime: number;
-}
-
-interface AdvancedSearchResult {
-  query: string;
-  filters: Record<string, unknown>;
-  results: BackendDocument[];
-  total: number;
-  searchTime: number;
-}
-
-interface TagStats {
-  tagName: string;
-  count: number;
-  documents: Document[];
-  lastUsed: string;
-}
-
-interface FileDownload {
-  documentId: string;
-  name: string;
-  type: string;
-  downloadUrl?: string;
-  dataUrl?: string;
-  size: number;
-  expiresIn?: string;
-}
+import { AuthService } from './api/authService';
+import { DocumentService } from './api/documentService';
+import { FolderService } from './api/folderService';
+import { SearchService } from './api/searchService';
+import { TagFileService } from './api/tagFileService';
+import { UserService } from './api/userService';
+import { BackupMegaService } from './api/backupMegaService';
+import { cacheService } from './cacheService';
 
 interface UserPreferences {
   theme: "light" | "dark" | "auto";
@@ -94,147 +15,73 @@ interface UserPreferences {
   notifications: boolean;
 }
 
-interface Stats {
-  totalDocuments: number;
-  totalSize: number;
-  byCategory: Record<string, number>;
-  byType: Record<string, number>;
-  recentActivity: Array<{
-    type: string;
-    document: string;
-    date: string;
-  }>;
-}
-
-interface BackupStatus {
-  lastBackup: string;
-  backupCount: number;
-  nextScheduled: string;
-  status: "idle" | "running" | "completed" | "error";
-}
-
-interface Backup {
-  id: string;
-  type: "full" | "incremental" | "documents-only";
-  createdAt: string;
-  size: number;
-  description?: string;
-  status: "completed" | "failed";
-}
-
-// Service API pour interagir avec le backend Netlify
+/**
+ * Service API principal qui combine tous les services spécialisés
+ * Fournit une interface unifiée pour accéder à toutes les fonctionnalités
+ */
 class ApiService {
-  private baseUrl = "/api";
-  private token: string | null = null;
+  // Services spécialisés
+  public readonly auth: AuthService;
+  public readonly documents: DocumentService;
+  public readonly folders: FolderService;
+  public readonly searchService: SearchService;
+  public readonly tagFile: TagFileService;
+  public readonly user: UserService;
+  public readonly backupMega: BackupMegaService;
 
-  // Configuration des headers avec authentification
-  private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-
-    if (this.token) {
-      headers["Authorization"] = `Bearer ${this.token}`;
-    }
-
-    return headers;
+  constructor() {
+    // Initialisation des services
+    this.auth = new AuthService();
+    this.documents = new DocumentService();
+    this.folders = new FolderService();
+    this.searchService = new SearchService();
+    this.tagFile = new TagFileService();
+    this.user = new UserService();
+    this.backupMega = new BackupMegaService();
   }
 
-  // Configuration des headers pour multipart/form-data
-  private getFormHeaders(): HeadersInit {
-    const headers: HeadersInit = {};
+  // === GESTION DU TOKEN (propagée à tous les services) ===
 
-    if (this.token) {
-      headers["Authorization"] = `Bearer ${this.token}`;
-    }
-
-    return headers;
-  }
-
-  // Gestion des erreurs API
-  private async handleResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: "Erreur réseau" }));
-      throw new Error(error.error || `Erreur HTTP ${response.status}`);
-    }
-    return response.json();
-  }
-
-  // Définir le token d'authentification
   setToken(token: string) {
-    this.token = token;
+    this.auth.setToken(token);
+    this.documents.setToken(token);
+    this.folders.setToken(token);
+    this.searchService.setToken(token);
+    this.tagFile.setToken(token);
+    this.user.setToken(token);
+    this.backupMega.setToken(token);
   }
 
-  // Supprimer le token d'authentification
   clearToken() {
-    this.token = null;
+    this.auth.clearToken();
+    this.documents.clearToken();
+    this.folders.clearToken();
+    this.searchService.clearToken();
+    this.tagFile.clearToken();
+    this.user.clearToken();
+    this.backupMega.clearToken();
   }
 
-  // === AUTHENTIFICATION ===
+  // === MÉTHODES DE COMPATIBILITÉ (pour une transition en douceur) ===
 
+  // Authentification
   async login(email: string, password: string) {
-    const response = await fetch(`${this.baseUrl}/auth/login`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify({ email, password }),
-    });
-
-    const result = await this.handleResponse<LoginResponse>(response);
-
-    if (result.token) {
-      this.setToken(result.token);
-    }
-
-    return result;
+    return this.auth.login(email, password);
   }
 
   async register(email: string, name: string, password: string) {
-    const response = await fetch(`${this.baseUrl}/auth/register`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify({ email, name, password }),
-    });
-
-    const result = await this.handleResponse<LoginResponse>(response);
-
-    if (result.token) {
-      this.setToken(result.token);
-    }
-
-    return result;
+    return this.auth.register(email, name, password);
   }
 
   async refreshToken() {
-    const response = await fetch(`${this.baseUrl}/auth/refresh`, {
-      method: "POST",
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<LoginResponse>(response);
-
-    if (result.token) {
-      this.setToken(result.token);
-    }
-
-    return result;
+    return this.auth.refreshToken();
   }
 
   async verifyToken() {
-    const response = await fetch(`${this.baseUrl}/auth/verify`, {
-      method: "POST",
-      headers: this.getHeaders(),
-    });
-
-    return this.handleResponse<{
-      valid: boolean;
-      user: User;
-    }>(response);
+    return this.auth.verifyToken();
   }
 
-  // === DOCUMENTS ===
-
+  // Documents
   async getDocuments(params?: {
     page?: number;
     limit?: number;
@@ -242,79 +89,11 @@ class ApiService {
     search?: string;
     tag?: string;
   }) {
-    // Créer une clé de cache
-    const cacheKey = cacheService.generateKey('getDocuments', params);
-    
-    // Vérifier le cache
-    const cached = cacheService.get<{
-      documents: BackendDocument[];
-      total: number;
-      page: number;
-      limit: number;
-    }>(cacheKey);
-    
-    if (cached) {
-      return {
-        ...cached,
-        documents: cached.documents.map(adaptBackendDocument),
-      };
-    }
-
-    const searchParams = new URLSearchParams();
-
-    if (params?.page) searchParams.append("page", params.page.toString());
-    if (params?.limit) searchParams.append("limit", params.limit.toString());
-    if (params?.category) searchParams.append("category", params.category);
-    if (params?.search) searchParams.append("search", params.search);
-    if (params?.tag) searchParams.append("tag", params.tag);
-
-    const url = `${this.baseUrl}/documents${
-      searchParams.toString() ? `?${searchParams}` : ""
-    }`;
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<{
-      documents: BackendDocument[];
-      total: number;
-      page: number;
-      limit: number;
-    }>(response);
-    
-    // Mettre en cache le résultat brut (avant adaptation)
-    cacheService.set(cacheKey, result, cacheService.TTL.documents);
-    
-    return {
-      ...result,
-      documents: result.documents.map(adaptBackendDocument),
-    };
+    return this.documents.getDocuments(params);
   }
 
   async getDocument(id: string) {
-    // Créer une clé de cache
-    const cacheKey = cacheService.generateKey('getDocument', { id });
-    
-    // Vérifier le cache
-    const cached = cacheService.get<BackendDocument>(cacheKey);
-    
-    if (cached) {
-      return adaptBackendDocument(cached);
-    }
-
-    const response = await fetch(`${this.baseUrl}/documents/${id}`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<BackendDocument>(response);
-    
-    // Mettre en cache le résultat brut
-    cacheService.set(cacheKey, result, cacheService.TTL.document);
-    
-    return adaptBackendDocument(result);
+    return this.documents.getDocument(id);
   }
 
   async createDocument(data: {
@@ -324,20 +103,7 @@ class ApiService {
     description?: string;
     tags?: string[];
   }) {
-    const response = await fetch(`${this.baseUrl}/documents`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-    });
-
-    const result = await this.handleResponse<BackendDocument>(response);
-    
-    // Invalider le cache des documents
-    cacheService.invalidate('getDocuments');
-    cacheService.invalidate('getStats');
-    cacheService.invalidate('getUserStats');
-    
-    return adaptBackendDocument(result);
+    return this.documents.createDocument(data);
   }
 
   async uploadDocument(
@@ -350,29 +116,7 @@ class ApiService {
       tags?: string[];
     }
   ) {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    if (data.name) formData.append("name", data.name);
-    if (data.type) formData.append("type", data.type);
-    if (data.category) formData.append("category", data.category);
-    if (data.description) formData.append("description", data.description);
-    if (data.tags) formData.append("tags", JSON.stringify(data.tags));
-
-    const response = await fetch(`${this.baseUrl}/documents`, {
-      method: "POST",
-      headers: this.getFormHeaders(),
-      body: formData,
-    });
-
-    const result = await this.handleResponse<BackendDocument>(response);
-    
-    // Invalider le cache des documents
-    cacheService.invalidate('getDocuments');
-    cacheService.invalidate('getStats');
-    cacheService.invalidate('getUserStats');
-    
-    return adaptBackendDocument(result);
+    return this.documents.uploadDocument(file, data);
   }
 
   async updateDocument(
@@ -383,94 +127,25 @@ class ApiService {
       category?: string;
       description?: string;
       tags?: string[];
-      isFavorite?: boolean; // Ajout du champ favorite
+      isFavorite?: boolean;
     }
   ) {
-    const response = await fetch(`${this.baseUrl}/documents/${id}`, {
-      method: "PUT",
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-    });
-
-    const result = await this.handleResponse<BackendDocument>(response);
-    
-    // Invalider le cache des documents et du document spécifique
-    cacheService.invalidate('getDocuments');
-    cacheService.invalidateKey(cacheService.generateKey('getDocument', { id }));
-    cacheService.invalidate('getStats');
-    cacheService.invalidate('getUserStats');
-    
-    return adaptBackendDocument(result);
+    return this.documents.updateDocument(id, data);
   }
 
   async deleteDocument(id: string) {
-    const response = await fetch(`${this.baseUrl}/documents/${id}`, {
-      method: "DELETE",
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<{ message: string }>(response);
-    
-    // Invalider le cache des documents et du document spécifique
-    cacheService.invalidate('getDocuments');
-    cacheService.invalidateKey(cacheService.generateKey('getDocument', { id }));
-    cacheService.invalidateKey(cacheService.generateKey('downloadFile', { documentId: id }));
-    cacheService.invalidate('getStats');
-    cacheService.invalidate('getUserStats');
-    
-    return result;
+    return this.documents.deleteDocument(id);
   }
 
-  async downloadDocument(id: string): Promise<Blob> {
-    const response = await fetch(`${this.baseUrl}/documents/${id}/download`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Erreur lors du téléchargement' }));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    return await response.blob();
+  async downloadDocument(id: string) {
+    return this.documents.downloadDocument(id);
   }
 
   async syncMegaFiles(folderId?: string) {
-    const response = await fetch(`${this.baseUrl}/documents/sync-mega`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify({ folderId }),
-    });
-
-    const result = await this.handleResponse<{
-      message: string;
-      syncedCount: number;
-      updatedCount: number;
-      newDocuments: Array<{
-        id: string;
-        name: string;
-        category: string;
-        size: number;
-      }>;
-      updatedDocuments: Array<{
-        id: string;
-        name: string;
-        category: string;
-        size: number;
-      }>;
-    }>(response);
-    
-    // Invalider tout le cache des documents car ils ont potentiellement changé
-    cacheService.invalidate('getDocuments');
-    cacheService.invalidate('getStats');
-    cacheService.invalidate('getUserStats');
-    cacheService.invalidate('getTags');
-    
-    return result;
+    return this.documents.syncMegaFiles(folderId);
   }
 
-  // === RECHERCHE ===
-
+  // Recherche
   async search(
     query: string,
     params?: {
@@ -480,26 +155,7 @@ class ApiService {
       tag?: string;
     }
   ) {
-    const searchParams = new URLSearchParams();
-    searchParams.append("q", query);
-
-    if (params?.limit) searchParams.append("limit", params.limit.toString());
-    if (params?.type) searchParams.append("type", params.type);
-    if (params?.category) searchParams.append("category", params.category);
-    if (params?.tag) searchParams.append("tag", params.tag);
-
-    const response = await fetch(
-      `${this.baseUrl}/search/search?${searchParams}`,
-      {
-        method: "GET",
-        headers: this.getHeaders(),
-      }
-    );
-
-    return this.handleResponse<SearchResult>(response).then((result) => ({
-      ...result,
-      results: result.results.map(adaptBackendDocument),
-    }));
+    return this.searchService.search(query, params);
   }
 
   async advancedSearch(criteria: {
@@ -513,199 +169,37 @@ class ApiService {
     maxSize?: number;
     limit?: number;
   }) {
-    const response = await fetch(`${this.baseUrl}/search/advanced-search`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify(criteria),
-    });
-
-    return this.handleResponse<AdvancedSearchResult>(response).then(
-      (result) => ({
-        ...result,
-        results: result.results.map(adaptBackendDocument),
-      })
-    );
+    return this.searchService.advancedSearch(criteria);
   }
 
   async getStats() {
-    // Créer une clé de cache
-    const cacheKey = cacheService.generateKey('getStats');
-    
-    // Vérifier le cache
-    const cached = cacheService.get<Stats>(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
-
-    const response = await fetch(`${this.baseUrl}/search/stats`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<Stats>(response);
-    
-    // Mettre en cache le résultat
-    cacheService.set(cacheKey, result, cacheService.TTL.stats);
-    
-    return result;
+    return this.searchService.getStats();
   }
 
   async getUserStats() {
-    // Créer une clé de cache
-    const cacheKey = cacheService.generateKey('getUserStats');
-    
-    // Vérifier le cache
-    const cached = cacheService.get<Stats>(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
-
-    const response = await fetch(`${this.baseUrl}/search/user-stats`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<Stats>(response);
-    
-    // Mettre en cache le résultat
-    cacheService.set(cacheKey, result, cacheService.TTL.userStats);
-    
-    return result;
+    return this.searchService.getUserStats();
   }
 
-  async getRecentActivities(limit = 10): Promise<Activity[]> {
-    try {
-      const response = await fetch(`${this.baseUrl}/search/recent-activities?limit=${limit}`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-      }
-
-      // Les données du backend ont un format différent, nous devons les adapter
-      const backendActivities = await this.handleResponse<Array<{
-        id: string;
-        type: string;
-        document: string;
-        documentId: string;
-        userId: string;
-        date: string;
-        details?: {
-          action?: string;
-          entity?: string;
-          additionalDetails?: string;
-          documentDetails?: Record<string, unknown>;
-        };
-      }>>(response);
-
-      // Adapter les données du backend vers notre format Activity
-      const activities: Activity[] = backendActivities.map(activity => ({
-        id: activity.id,
-        type: activity.type as Activity['type'],
-        documentName: activity.document,
-        documentId: activity.documentId,
-        timestamp: activity.date,
-        details: activity.details?.additionalDetails || ''
-      }));
-
-      return activities;
-    } catch (error) {
-      console.warn('Endpoint des activités récentes non disponible, utilisation des données simulées', error);
-      // Fallback vers des activités simulées si l'endpoint n'est pas disponible
-      return generateSimulatedActivities(limit);
-    }
+  async getRecentActivities(limit = 10) {
+    return this.searchService.getRecentActivities(limit);
   }
 
-  // === TAGS ===
-
-  async getTags(): Promise<Array<{ name: string; count: number; color?: string }>> {
-    const cacheKey = 'tags-all';
-    const cached = cacheService.get<Array<{ name: string; count: number; color?: string }>>(cacheKey);
-    if (cached) return cached;
-
-    const response = await fetch('/.netlify/functions/tags', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erreur lors de la récupération des tags: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    cacheService.set(cacheKey, data, 5 * 60 * 1000); // Cache 5 minutes
-    return data;
+  // Tags et fichiers
+  async getTags() {
+    return this.tagFile.getTags();
   }
 
   async getTagStats(tagName: string) {
-    const response = await fetch(`${this.baseUrl}/tags/${tagName}`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    return this.handleResponse<TagStats>(response);
+    return this.tagFile.getTagStats(tagName);
   }
-
-  // === FICHIERS ===
 
   async downloadFile(documentId: string) {
-    // Créer une clé de cache
-    const cacheKey = cacheService.generateKey('downloadFile', { documentId });
-    
-    // Vérifier le cache
-    const cached = cacheService.get<FileDownload>(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
-
-    // Toujours récupérer en base64 pour éviter les redirections vers MEGA
-    const response = await fetch(
-      `${this.baseUrl}/files/${documentId}`,
-      {
-        method: "GET",
-        headers: this.getHeaders(),
-      }
-    );
-
-    const result = await this.handleResponse<FileDownload>(response);
-    
-    // Mettre en cache le résultat (fichiers ont une durée de vie plus longue)
-    cacheService.set(cacheKey, result, cacheService.TTL.downloadFile);
-    
-    return result;
+    return this.tagFile.downloadFile(documentId);
   }
 
-  // === UTILISATEUR ===
-
+  // Utilisateur
   async getProfile() {
-    // Créer une clé de cache
-    const cacheKey = cacheService.generateKey('getProfile');
-    
-    // Vérifier le cache
-    const cached = cacheService.get<User>(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
-
-    const response = await fetch(`${this.baseUrl}/users/profile`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<User>(response);
-    
-    // Mettre en cache le résultat
-    cacheService.set(cacheKey, result, cacheService.TTL.profile);
-    
-    return result;
+    return this.user.getProfile();
   }
 
   async updateProfile(data: {
@@ -713,97 +207,96 @@ class ApiService {
     email?: string;
     password?: string;
   }) {
-    const response = await fetch(`${this.baseUrl}/users/profile`, {
-      method: "PUT",
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-    });
-
-    const result = await this.handleResponse<User>(response);
-    
-    // Invalider le cache du profil
-    cacheService.invalidate('getProfile');
-    
-    return result;
+    return this.user.updateProfile(data);
   }
 
   async getPreferences() {
-    const response = await fetch(`${this.baseUrl}/users/preferences`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    return this.handleResponse<UserPreferences>(response);
+    return this.user.getPreferences();
   }
 
   async updatePreferences(preferences: UserPreferences) {
-    const response = await fetch(`${this.baseUrl}/users/preferences`, {
-      method: "PUT",
-      headers: this.getHeaders(),
-      body: JSON.stringify(preferences),
-    });
-
-    return this.handleResponse<UserPreferences>(response);
+    return this.user.updatePreferences(preferences);
   }
 
   async deleteAccount() {
-    const response = await fetch(`${this.baseUrl}/users/account`, {
-      method: "DELETE",
-      headers: this.getHeaders(),
-    });
-
-    return this.handleResponse<{ message: string }>(response);
+    return this.user.deleteAccount();
   }
 
-  // === SAUVEGARDE ===
+  // Dossiers
+  async getFolders(parentId?: string) {
+    return this.folders.getFolders(parentId);
+  }
 
+  async getFolder(id: string) {
+    return this.folders.getFolder(id);
+  }
+
+  async createFolder(data: {
+    name: string;
+    description?: string;
+    color?: string;
+    parentId?: string;
+  }) {
+    return this.folders.createFolder(data);
+  }
+
+  async updateFolder(id: string, data: {
+    name?: string;
+    description?: string;
+    color?: string;
+    parentId?: string;
+  }) {
+    return this.folders.updateFolder(id, data);
+  }
+
+  async deleteFolder(id: string) {
+    return this.folders.deleteFolder(id);
+  }
+
+  async moveDocumentToFolder(documentId: string, folderId?: string) {
+    return this.folders.moveDocumentToFolder(documentId, folderId);
+  }
+
+  async getFolderPath(id: string) {
+    return this.folders.getFolderPath(id);
+  }
+
+  // Sauvegarde et MEGA
   async getBackupStatus() {
-    const response = await fetch(`${this.baseUrl}/backup/status`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
-
-    return this.handleResponse<BackupStatus>(response);
+    return this.backupMega.getBackupStatus();
   }
 
   async createBackup(
     type: "full" | "incremental" | "documents-only" = "full",
     description?: string
   ) {
-    const response = await fetch(`${this.baseUrl}/backup/create`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify({ type, description }),
-    });
-
-    return this.handleResponse<{
-      message: string;
-      backup: Backup;
-    }>(response);
+    return this.backupMega.createBackup(type, description);
   }
 
   async restoreBackup(backupId: string, replaceExisting: boolean = false) {
-    const response = await fetch(`${this.baseUrl}/backup/restore`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify({ backupId, replaceExisting }),
-    });
+    return this.backupMega.restoreBackup(backupId, replaceExisting);
+  }
 
-    return this.handleResponse<{
-      message: string;
-      result: {
-        documentsRestored: number;
-        usersRestored: number;
-        success: boolean;
-      };
-    }>(response);
+  async getMegaConfig() {
+    return this.backupMega.getMegaConfig();
+  }
+
+  async saveMegaConfig(config: { email: string; password: string }, isUpdate: boolean = false) {
+    return this.backupMega.saveMegaConfig(config, isUpdate);
+  }
+
+  async testMegaConnection() {
+    return this.backupMega.testMegaConnection();
+  }
+
+  async deleteMegaConfig() {
+    return this.backupMega.deleteMegaConfig();
   }
 
   // === GESTION DU CACHE ===
 
   /**
    * Vide tout le cache ou une partie selon le pattern
-   * @param pattern - Pattern optionnel pour filtrer les clés à supprimer
    */
   clearCache(pattern?: string): void {
     cacheService.invalidate(pattern);
@@ -827,168 +320,7 @@ class ApiService {
   startCacheAutoCleanup(intervalMs?: number): () => void {
     return cacheService.startAutoCleanup(intervalMs);
   }
-
-  // === DOSSIERS ===
-
-  async getFolders(parentId?: string): Promise<Folder[]> {
-    const cacheKey = cacheService.generateKey('getFolders', { parentId });
-    const cached = cacheService.get<Folder[]>(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
-
-    const searchParams = new URLSearchParams();
-    if (parentId) {
-      searchParams.append('parentId', parentId);
-    }
-
-    const url = `${this.baseUrl}/folders${searchParams.toString() ? `?${searchParams}` : ''}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<Folder[]>(response);
-    
-    // Mettre en cache le résultat
-    cacheService.set(cacheKey, result, cacheService.TTL.documents);
-    
-    return result;
-  }
-
-  async getFolder(id: string): Promise<Folder> {
-    const cacheKey = cacheService.generateKey('getFolder', { id });
-    const cached = cacheService.get<Folder>(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
-
-    const response = await fetch(`${this.baseUrl}/folders/${id}`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<Folder>(response);
-    
-    // Mettre en cache le résultat
-    cacheService.set(cacheKey, result, cacheService.TTL.document);
-    
-    return result;
-  }
-
-  async createFolder(data: {
-    name: string;
-    description?: string;
-    color?: string;
-    parentId?: string;
-  }): Promise<Folder> {
-    const response = await fetch(`${this.baseUrl}/folders`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-    });
-
-    const result = await this.handleResponse<Folder>(response);
-    
-    // Invalider le cache des dossiers
-    cacheService.invalidate('getFolders');
-    
-    return result;
-  }
-
-  async updateFolder(id: string, data: {
-    name?: string;
-    description?: string;
-    color?: string;
-    parentId?: string;
-  }): Promise<Folder> {
-    const response = await fetch(`${this.baseUrl}/folders/${id}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-    });
-
-    const result = await this.handleResponse<Folder>(response);
-    
-    // Invalider le cache des dossiers
-    cacheService.invalidate('getFolders');
-    cacheService.invalidateKey(cacheService.generateKey('getFolder', { id }));
-    
-    return result;
-  }
-
-  async deleteFolder(id: string): Promise<{ message: string }> {
-    const response = await fetch(`${this.baseUrl}/folders/${id}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-    });
-
-    const result = await this.handleResponse<{ message: string }>(response);
-    
-    // Invalider le cache des dossiers
-    cacheService.invalidate('getFolders');
-    cacheService.invalidateKey(cacheService.generateKey('getFolder', { id }));
-    
-    return result;
-  }
-
-  async moveDocumentToFolder(documentId: string, folderId?: string): Promise<Document> {
-    const response = await fetch(`${this.baseUrl}/folders/move-document`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify({ documentId, folderId }),
-    });
-
-    const backendDocument = await this.handleResponse<BackendDocument>(response);
-    
-    // Invalider le cache des documents et dossiers
-    cacheService.invalidate('getDocuments');
-    cacheService.invalidate('getFolders');
-    cacheService.invalidateKey(cacheService.generateKey('getDocument', { id: documentId }));
-    
-    return adaptBackendDocument(backendDocument);
-  }
-
-  async getFolderPath(id: string): Promise<{ path: string }> {
-    const response = await fetch(`${this.baseUrl}/folders/${id}/path`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-
-    return this.handleResponse<{ path: string }>(response);
-  }
-
-  /**
-   * Gestion des tags
-   */
 }
-
-// Fonction pour générer des activités simulées (fallback)
-const generateSimulatedActivities = (limit: number): Activity[] => {
-  const types: Activity['type'][] = ['upload', 'update', 'delete', 'view', 'download', 'sync'];
-  const documentNames = [
-    'Rapport_financier_Q4.pdf',
-    'Présentation_client.pptx',
-    'Facture_2024_001.pdf',
-    'Contrat_prestation.docx',
-    'Budget_prévisionnel.xlsx',
-    'Photo_équipe.jpg',
-    'Manuel_utilisateur.pdf',
-    'Sauvegarde_données.zip'
-  ];
-
-  return Array.from({ length: Math.min(limit, 10) }, (_, index) => ({
-    id: `simulated-${index}`,
-    type: types[Math.floor(Math.random() * types.length)],
-    documentName: documentNames[Math.floor(Math.random() * documentNames.length)],
-    documentId: `doc-${index}`,
-    timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-    details: 'Activité simulée (endpoint backend non disponible)'
-  }));
-};
 
 // Instance singleton du service API
 export const apiService = new ApiService();

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
+import { apiService } from '../services/apiService';
 
 interface MegaConfig {
   email: string;
@@ -37,26 +38,22 @@ const MegaConfigurationSettings: React.FC = () => {
     const token = getToken();
     if (!token) return;
 
+    // Configurer le token dans apiService
+    apiService.setToken(token);
+
     setLoading(true);
     try {
-      const response = await fetch('/.netlify/functions/user-mega-config', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentConfig(data);
-        if (data.email) {
-          setConfig(prev => ({ ...prev, email: data.email }));
-        }
-      } else if (response.status !== 404) {
-        // 404 signifie qu'aucune config n'existe, c'est normal
-        console.error('Erreur lors du chargement de la configuration MEGA');
+      const data = await apiService.getMegaConfig();
+      setCurrentConfig(data);
+      if (data.email) {
+        setConfig(prev => ({ ...prev, email: data.email }));
       }
-    } catch (error) {
-      console.error('Erreur lors du chargement de la configuration MEGA:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      if (errorMessage !== 'Erreur HTTP 404') {
+        // 404 signifie qu'aucune config n'existe, c'est normal
+        console.error('Erreur lors du chargement de la configuration MEGA:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -80,35 +77,29 @@ const MegaConfigurationSettings: React.FC = () => {
       return;
     }
 
+    // Configurer le token dans apiService
+    apiService.setToken(token);
+
     setSaving(true);
     try {
-      const response = await fetch('/.netlify/functions/user-mega-config', {
-        method: currentConfig ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const data = await apiService.saveMegaConfig(
+        {
           email: config.email,
           password: config.password,
-        }),
-      });
+        },
+        !!currentConfig
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentConfig(data);
-        setConfig(prev => ({ ...prev, password: '' })); // Effacer le mot de passe pour la sécurité
-        showToast(
-          currentConfig ? 'Configuration MEGA mise à jour' : 'Configuration MEGA créée',
-          'success'
-        );
-      } else {
-        const errorData = await response.json();
-        showToast(errorData.error || 'Erreur lors de la sauvegarde', 'error');
-      }
-    } catch (error) {
+      setCurrentConfig(data);
+      setConfig(prev => ({ ...prev, password: '' })); // Effacer le mot de passe pour la sécurité
+      showToast(
+        currentConfig ? 'Configuration MEGA mise à jour' : 'Configuration MEGA créée',
+        'success'
+      );
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la sauvegarde';
       console.error('Erreur lors de la sauvegarde:', error);
-      showToast('Erreur lors de la sauvegarde', 'error');
+      showToast(errorMessage, 'error');
     } finally {
       setSaving(false);
     }
@@ -126,24 +117,22 @@ const MegaConfigurationSettings: React.FC = () => {
       return;
     }
 
+    // Configurer le token dans apiService
+    apiService.setToken(token);
+
     setLoading(true);
     try {
-      const response = await fetch('/.netlify/functions/user-mega-config?action=test', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
+      const data = await apiService.testMegaConnection();
       
-      if (response.ok && data.success) {
+      if (data.success) {
         showToast('Connexion MEGA réussie !', 'success');
       } else {
         showToast(data.error || 'Échec du test de connexion', 'error');
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors du test de connexion';
       console.error('Erreur lors du test:', error);
-      showToast('Erreur lors du test de connexion', 'error');
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -157,26 +146,19 @@ const MegaConfigurationSettings: React.FC = () => {
       return;
     }
 
+    // Configurer le token dans apiService
+    apiService.setToken(token);
+
     setLoading(true);
     try {
-      const response = await fetch('/.netlify/functions/user-mega-config', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        setCurrentConfig(null);
-        setConfig({ email: '', password: '' });
-        showToast('Configuration MEGA supprimée', 'success');
-      } else {
-        const errorData = await response.json();
-        showToast(errorData.error || 'Erreur lors de la suppression', 'error');
-      }
-    } catch (error) {
+      await apiService.deleteMegaConfig();
+      setCurrentConfig(null);
+      setConfig({ email: '', password: '' });
+      showToast('Configuration MEGA supprimée', 'success');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la suppression';
       console.error('Erreur lors de la suppression:', error);
-      showToast('Erreur lors de la suppression', 'error');
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -216,24 +198,24 @@ const MegaConfigurationSettings: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="form-control">
+        <form onSubmit={handleSave} className="space-y-6">
+          <div className="form-control w-full">
             <label className="label">
-              <span className="label-text">Email MEGA</span>
+              <span className="label-text font-medium">Email MEGA</span>
             </label>
             <input
               type="email"
               placeholder="votre-email@example.com"
-              className="input input-bordered"
+              className="input input-bordered w-full"
               value={config.email}
               onChange={(e) => setConfig(prev => ({ ...prev, email: e.target.value }))}
               required
             />
           </div>
 
-          <div className="form-control">
+          <div className="form-control w-full">
             <label className="label">
-              <span className="label-text">Mot de passe MEGA</span>
+              <span className="label-text font-medium">Mot de passe MEGA</span>
             </label>
             <div className="relative">
               <input
@@ -246,7 +228,7 @@ const MegaConfigurationSettings: React.FC = () => {
               />
               <button
                 type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-primary transition-colors"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,23 +242,23 @@ const MegaConfigurationSettings: React.FC = () => {
             </div>
             {!currentConfig?.hasCredentials && (
               <label className="label">
-                <span className="label-text-alt">Le mot de passe sera chiffré et stocké de manière sécurisée</span>
+                <span className="label-text-alt text-info">Le mot de passe sera chiffré et stocké de manière sécurisée</span>
               </label>
             )}
             {currentConfig?.hasCredentials && !config.password && (
               <label className="label">
-                <span className="label-text-alt">Laissez vide pour conserver le mot de passe actuel</span>
+                <span className="label-text-alt text-warning">Laissez vide pour conserver le mot de passe actuel</span>
               </label>
             )}
           </div>
 
-          <div className="card-actions justify-between">
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <div className="flex gap-2 flex-1">
               {currentConfig?.hasCredentials && (
                 <>
                   <button
                     type="button"
-                    className={`btn btn-outline ${loading ? 'loading' : ''}`}
+                    className={`btn btn-outline btn-sm ${loading ? 'loading' : ''}`}
                     onClick={handleTest}
                     disabled={loading || saving}
                   >
@@ -291,7 +273,7 @@ const MegaConfigurationSettings: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-outline btn-error"
+                    className="btn btn-outline btn-error btn-sm"
                     onClick={handleDelete}
                     disabled={loading || saving}
                   >
@@ -306,7 +288,7 @@ const MegaConfigurationSettings: React.FC = () => {
             
             <button
               type="submit"
-              className={`btn btn-primary ${saving ? 'loading' : ''}`}
+              className={`btn btn-primary ${saving ? 'loading' : ''} sm:min-w-[140px]`}
               disabled={loading || saving}
             >
               {saving ? '' : (
