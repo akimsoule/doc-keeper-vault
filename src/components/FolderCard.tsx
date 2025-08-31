@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Folder, MoreVertical, Edit3, Trash2, Move } from 'lucide-react';
 import { Folder as FolderType } from '../types';
 import { formatFileSize } from '../utils/formatters';
@@ -23,10 +23,47 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   viewMode = 'grid',
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [clickTimeout, setClickTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const handleDoubleClick = () => {
+    // Annuler le timeout du simple clic si double-clic détecté
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      setClickTimeout(null);
+    }
     onOpen(folder);
   };
+
+  const handleClick = (_e: React.MouseEvent) => {
+    // Sur les appareils tactiles, utiliser le simple clic immédiatement
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    if (isTouchDevice) {
+      onOpen(folder);
+      return;
+    }
+
+    // Sur desktop, attendre un peu pour voir s'il y a un double-clic
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+    }
+    
+    const timeout = setTimeout(() => {
+      onOpen(folder);
+      setClickTimeout(null);
+    }, 200);
+    
+    setClickTimeout(timeout);
+  };
+
+  // Nettoyer le timeout au démontage du composant
+  useEffect(() => {
+    return () => {
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
+    };
+  }, [clickTimeout]);
 
   const handleMenuAction = (action: 'edit' | 'delete' | 'move', e: React.MouseEvent) => {
     e.stopPropagation();
@@ -47,10 +84,20 @@ export const FolderCard: React.FC<FolderCardProps> = ({
 
   return (
     <div
-      className={`relative group bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md transition-all duration-200 cursor-pointer ${
-        viewMode === 'list' ? 'flex items-center p-3' : ''
+      className={`relative group card bg-base-100 border border-base-300 hover:border-base-content/20 hover:shadow-md transition-all duration-200 cursor-pointer touch-manipulation ${
+        viewMode === 'list' ? 'card-side' : ''
       } ${className}`}
+      onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen(folder);
+        }
+      }}
+      aria-label={`Dossier ${folder.name}, ${folder.documentCount} documents, ${folder.folderCount} sous-dossiers`}
     >
       {/* Menu contextuel */}
       <div className="absolute top-2 right-2 z-10">
@@ -60,9 +107,10 @@ export const FolderCard: React.FC<FolderCardProps> = ({
               e.stopPropagation();
               setShowMenu(!showMenu);
             }}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-opacity"
+            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 btn btn-ghost btn-sm sm:btn-xs btn-circle transition-opacity touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] bg-base-100/80 backdrop-blur-sm"
+            aria-label="Menu du dossier"
           >
-            <MoreVertical className="h-4 w-4 text-gray-500" />
+            <MoreVertical className="h-4 w-4" />
           </button>
           
           {showMenu && (
@@ -73,30 +121,32 @@ export const FolderCard: React.FC<FolderCardProps> = ({
                 onClick={() => setShowMenu(false)}
               />
               {/* Menu déroulant */}
-              <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
-                <button
-                  onClick={(e) => handleMenuAction('edit', e)}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <Edit3 className="h-4 w-4" />
-                  Modifier
-                </button>
-                {onMove && (
+              <div className="absolute right-0 top-full mt-1 w-40 card bg-base-100 shadow-lg border border-base-300 z-20">
+                <div className="card-body p-1">
                   <button
-                    onClick={(e) => handleMenuAction('move', e)}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    onClick={(e) => handleMenuAction('edit', e)}
+                    className="btn btn-ghost btn-sm justify-start gap-2 w-full"
                   >
-                    <Move className="h-4 w-4" />
-                    Déplacer
+                    <Edit3 className="h-4 w-4" />
+                    Modifier
                   </button>
-                )}
-                <button
-                  onClick={(e) => handleMenuAction('delete', e)}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Supprimer
-                </button>
+                  {onMove && (
+                    <button
+                      onClick={(e) => handleMenuAction('move', e)}
+                      className="btn btn-ghost btn-sm justify-start gap-2 w-full"
+                    >
+                      <Move className="h-4 w-4" />
+                      Déplacer
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => handleMenuAction('delete', e)}
+                    className="btn btn-ghost btn-sm justify-start gap-2 w-full text-error hover:bg-error/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -105,24 +155,26 @@ export const FolderCard: React.FC<FolderCardProps> = ({
 
       {viewMode === 'grid' ? (
         /* Mode grille */
-        <div className="p-4">
-          {/* Icône et nom du dossier */}
-          <div className="flex items-center gap-3 mb-3">
+        <div className="card-body">
+          {/* Icône du dossier centrée */}
+          <div className="flex flex-col items-center text-center mb-3">
             <div
-              className="p-2 rounded-lg"
+              className="p-3 sm:p-4 rounded-lg mb-2"
               style={{ backgroundColor: `${folder.color}20` }}
             >
               <Folder
-                className="h-8 w-8"
+                className="h-8 w-8 sm:h-10 sm:w-10"
                 style={{ color: folder.color }}
               />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-gray-900 dark:text-white truncate">
+            
+            {/* Nom et description */}
+            <div className="w-full">
+              <h3 className="font-medium text-sm sm:text-base text-base-content truncate">
                 {folder.name}
               </h3>
               {folder.description && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                <p className="text-xs sm:text-sm text-base-content/60 truncate mt-1">
                   {folder.description}
                 </p>
               )}
@@ -130,34 +182,34 @@ export const FolderCard: React.FC<FolderCardProps> = ({
           </div>
 
           {/* Statistiques */}
-          <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 text-xs">
             <div className="text-center">
-              <div className="font-medium text-gray-900 dark:text-white">
+              <div className="font-medium text-base-content text-sm sm:text-base">
                 {folder.documentCount}
               </div>
-              <div className="text-gray-500 dark:text-gray-400">
-                {folder.documentCount === 1 ? 'document' : 'documents'}
+              <div className="text-base-content/60 text-xs">
+                {folder.documentCount === 1 ? 'doc' : 'docs'}
               </div>
             </div>
             <div className="text-center">
-              <div className="font-medium text-gray-900 dark:text-white">
+              <div className="font-medium text-base-content text-sm sm:text-base">
                 {folder.folderCount}
               </div>
-              <div className="text-gray-500 dark:text-gray-400">
+              <div className="text-base-content/60 text-xs">
                 {folder.folderCount === 1 ? 'dossier' : 'dossiers'}
               </div>
             </div>
             <div className="text-center">
-              <div className="font-medium text-gray-900 dark:text-white">
+              <div className="font-medium text-base-content text-sm sm:text-base">
                 {formatFileSize(folder.totalSize)}
               </div>
-              <div className="text-gray-500 dark:text-gray-400">taille</div>
+              <div className="text-base-content/60 text-xs">taille</div>
             </div>
           </div>
 
           {/* Date de création */}
-          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-base-300">
+            <p className="text-xs text-base-content/60">
               Créé le {new Date(folder.createdAt).toLocaleDateString('fr-FR')}
             </p>
           </div>
@@ -166,22 +218,22 @@ export const FolderCard: React.FC<FolderCardProps> = ({
         /* Mode liste */
         <>
           {/* Icône et nom */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 p-3 sm:p-4 pr-12">
             <div
-              className="p-2 rounded-lg"
+              className="p-1.5 sm:p-2 rounded-lg flex-shrink-0"
               style={{ backgroundColor: `${folder.color}20` }}
             >
               <Folder
-                className="h-6 w-6"
+                className="h-5 w-5 sm:h-6 sm:w-6"
                 style={{ color: folder.color }}
               />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-gray-900 dark:text-white truncate">
+              <h3 className="font-medium text-sm sm:text-base text-base-content truncate">
                 {folder.name}
               </h3>
               {folder.description && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                <p className="text-xs sm:text-sm text-base-content/60 truncate">
                   {folder.description}
                 </p>
               )}
@@ -189,11 +241,29 @@ export const FolderCard: React.FC<FolderCardProps> = ({
           </div>
 
           {/* Statistiques en ligne */}
-          <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
+          <div className="hidden sm:flex items-center gap-4 lg:gap-6 text-sm text-base-content/60 p-4 pr-12">
             <span>{folder.documentCount} {folder.documentCount === 1 ? 'document' : 'documents'}</span>
             <span>{folder.folderCount} {folder.folderCount === 1 ? 'dossier' : 'dossiers'}</span>
             <span>{formatFileSize(folder.totalSize)}</span>
             <span>{new Date(folder.createdAt).toLocaleDateString('fr-FR')}</span>
+          </div>
+          
+          {/* Statistiques mobiles */}
+          <div className="sm:hidden p-2 bg-base-200 mr-12">
+            <div className="grid grid-cols-3 gap-1 text-xs">
+              <div className="text-center">
+                <div className="font-medium text-base-content">{folder.documentCount}</div>
+                <div className="text-base-content/60">docs</div>
+              </div>
+              <div className="text-center">
+                <div className="font-medium text-base-content">{folder.folderCount}</div>
+                <div className="text-base-content/60">dossiers</div>
+              </div>
+              <div className="text-center">
+                <div className="font-medium text-base-content">{formatFileSize(folder.totalSize)}</div>
+                <div className="text-base-content/60">taille</div>
+              </div>
+            </div>
           </div>
         </>
       )}

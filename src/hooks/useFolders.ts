@@ -1,7 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Folder } from '../types';
-import apiService from '../services/apiService';
+import { FolderService } from '../services/api';
+import { tokenManager } from '../services/tokenManager';
 import toast from 'react-hot-toast';
+
+const folderService = new FolderService();
+// Enregistrer le service auprès du gestionnaire de tokens
+tokenManager.registerService(folderService);
 
 export const useFolders = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -15,7 +20,7 @@ export const useFolders = () => {
     setError(null);
     
     try {
-      const result = await apiService.getFolders(parentId);
+      const result = await folderService.getFolders(parentId);
       setFolders(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des dossiers';
@@ -32,7 +37,7 @@ export const useFolders = () => {
     setError(null);
     
     try {
-      const folder = await apiService.getFolder(folderId);
+      const folder = await folderService.getFolder(folderId);
       setCurrentFolder(folder);
       return folder;
     } catch (err) {
@@ -56,7 +61,7 @@ export const useFolders = () => {
     setError(null);
     
     try {
-      const newFolder = await apiService.createFolder(data);
+      const newFolder = await folderService.createFolder(data);
       
       // Recharger la liste des dossiers du même niveau
       await loadFolders(data.parentId);
@@ -84,7 +89,7 @@ export const useFolders = () => {
     setError(null);
     
     try {
-      const updatedFolder = await apiService.updateFolder(folderId, data);
+      const updatedFolder = await folderService.updateFolder(folderId, data);
       
       // Mettre à jour le dossier courant s'il s'agit du même
       if (currentFolder?.id === folderId) {
@@ -112,7 +117,7 @@ export const useFolders = () => {
     setError(null);
     
     try {
-      await apiService.deleteFolder(folderId);
+      await folderService.deleteFolder(folderId);
       
       // Si c'était le dossier courant, le déselectionner
       if (currentFolder?.id === folderId) {
@@ -140,7 +145,7 @@ export const useFolders = () => {
     setError(null);
     
     try {
-      const updatedDocument = await apiService.moveDocumentToFolder(documentId, folderId);
+      const updatedDocument = await folderService.moveDocumentToFolder(documentId, folderId);
       
       // Recharger les dossiers pour mettre à jour les compteurs
       if (currentFolder) {
@@ -164,7 +169,7 @@ export const useFolders = () => {
   // Obtenir le chemin complet d'un dossier
   const getFolderPath = useCallback(async (folderId: string) => {
     try {
-      const result = await apiService.getFolderPath(folderId);
+      const result = await folderService.getFolderPath(folderId);
       return result.path;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la récupération du chemin';

@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import apiService from '../services/apiService';
+import { AuthService } from '../services/api';
+import { tokenManager } from '../services/tokenManager';
+
+const authService = new AuthService();
+// Enregistrer le service auprès du gestionnaire de tokens
+tokenManager.registerService(authService);
 
 interface User {
   id: string;
@@ -35,7 +40,7 @@ export const useAuth = (): UseAuthResult => {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
-    apiService.clearToken();
+    tokenManager.clearToken();
     setUser(null);
   }, []);
 
@@ -44,10 +49,11 @@ export const useAuth = (): UseAuthResult => {
     setError(null);
     
     try {
-      const response = await apiService.login(email, password);
+      const response = await authService.login(email, password);
       
       // Stocker le token
       localStorage.setItem(TOKEN_KEY, response.token);
+      tokenManager.setToken(response.token);
       setUser(response.user);
       
       return true;
@@ -64,10 +70,12 @@ export const useAuth = (): UseAuthResult => {
     setError(null);
     
     try {
-      const response = await apiService.register(email, name, password);
+      const response = await authService.register(email, name, password);
       
       // Stocker le token
       localStorage.setItem(TOKEN_KEY, response.token);
+      tokenManager.setToken(response.token);
+      setUser(response.user);
       setUser(response.user);
       
       return true;
@@ -81,7 +89,7 @@ export const useAuth = (): UseAuthResult => {
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await apiService.refreshToken();
+      const response = await authService.refreshToken();
       
       // Mettre à jour le token
       localStorage.setItem(TOKEN_KEY, response.token);
@@ -104,11 +112,11 @@ export const useAuth = (): UseAuthResult => {
     }
     
     try {
-      // Configurer le token dans le service API
-      apiService.setToken(token);
+      // Configurer le token dans tous les services via le gestionnaire central
+      tokenManager.setToken(token);
       
       // Vérifier le token
-      const response = await apiService.verifyToken();
+      const response = await authService.verifyToken();
       
       if (response.valid) {
         setUser(response.user);

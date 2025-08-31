@@ -23,7 +23,18 @@ import {
   addArchivedTag,
   removeArchivedTag,
 } from "../utils/tags";
-import apiService from "../services/apiService";
+import {
+  DocumentService,
+  TagFileService
+} from "../services/api";
+import { tokenManager } from "../services/tokenManager";
+
+// Initialisation des services
+const documentService = new DocumentService();
+const tagFileService = new TagFileService();
+// Enregistrer les services auprès du gestionnaire de tokens
+tokenManager.registerService(documentService);
+tokenManager.registerService(tagFileService);
 
 export const DashboardPage = () => {
   // Hook pour gérer le mode de vue avec localStorage
@@ -117,7 +128,7 @@ export const DashboardPage = () => {
     try {
       // Compter les documents archivés
       // Récupérer les documents archivés en utilisant le tag "archived"
-      const archivedResponse = await apiService.getDocuments({
+      const archivedResponse = await documentService.getDocuments({
         page: 1,
         limit: 1000, // Prendre un grand nombre pour compter
         tag: "archived",
@@ -126,7 +137,7 @@ export const DashboardPage = () => {
       setArchivedCount(archivedResponse.total);
 
       // Récupérer aussi tous les documents pour calculer le total non archivé
-      const allResponse = await apiService.getDocuments({
+      const allResponse = await documentService.getDocuments({
         page: 1,
         limit: 1000,
       });
@@ -315,7 +326,7 @@ export const DashboardPage = () => {
 
   const handleUpdateTags = async (id: string, tags: string[]) => {
     try {
-      await apiService.updateDocument(id, { tags });
+      await documentService.updateDocument(id, { tags });
 
       // Actualiser la liste des documents
       await loadDocuments();
@@ -425,7 +436,7 @@ export const DashboardPage = () => {
       });
 
       // Utiliser notre API backend pour obtenir le contenu du document
-      const fileData = await apiService.downloadFile(id);
+      const fileData = await tagFileService.downloadFile(id);
 
       if (fileData.dataUrl) {
         // Mettre à jour le modal avec les données du fichier

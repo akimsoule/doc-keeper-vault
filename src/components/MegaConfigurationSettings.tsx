@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
-import { apiService } from '../services/apiService';
+import { BackupMegaService } from '../services/api';
+import { tokenManager } from '../services/tokenManager';
+
+const backupMegaService = new BackupMegaService();
+// Enregistrer le service auprès du gestionnaire de tokens
+tokenManager.registerService(backupMegaService);
 
 interface MegaConfig {
   email: string;
@@ -38,12 +43,9 @@ const MegaConfigurationSettings: React.FC = () => {
     const token = getToken();
     if (!token) return;
 
-    // Configurer le token dans apiService
-    apiService.setToken(token);
-
     setLoading(true);
     try {
-      const data = await apiService.getMegaConfig();
+      const data = await backupMegaService.getMegaConfig();
       setCurrentConfig(data);
       if (data.email) {
         setConfig(prev => ({ ...prev, email: data.email }));
@@ -78,11 +80,10 @@ const MegaConfigurationSettings: React.FC = () => {
     }
 
     // Configurer le token dans apiService
-    apiService.setToken(token);
 
     setSaving(true);
     try {
-      const data = await apiService.saveMegaConfig(
+      const data = await backupMegaService.saveMegaConfig(
         {
           email: config.email,
           password: config.password,
@@ -118,11 +119,10 @@ const MegaConfigurationSettings: React.FC = () => {
     }
 
     // Configurer le token dans apiService
-    apiService.setToken(token);
 
     setLoading(true);
     try {
-      const data = await apiService.testMegaConnection();
+      const data = await backupMegaService.testMegaConnection();
       
       if (data.success) {
         showToast('Connexion MEGA réussie !', 'success');
@@ -147,11 +147,10 @@ const MegaConfigurationSettings: React.FC = () => {
     }
 
     // Configurer le token dans apiService
-    apiService.setToken(token);
 
     setLoading(true);
     try {
-      await apiService.deleteMegaConfig();
+      await backupMegaService.deleteMegaConfig();
       setCurrentConfig(null);
       setConfig({ email: '', password: '' });
       showToast('Configuration MEGA supprimée', 'success');

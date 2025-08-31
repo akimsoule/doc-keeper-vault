@@ -43,77 +43,78 @@ export const MoveDocumentModal: React.FC<MoveDocumentModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+    <div className="modal modal-open">
+      <div className="modal-box w-11/12 max-w-md">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-base-content">
             Déplacer le document
           </h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="btn btn-ghost btn-sm btn-circle"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4">
+        <div className="space-y-4">
           {document && (
-            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Document à déplacer :
-              </p>
-              <p className="font-medium text-gray-900 dark:text-white">
-                {document.name}
+            <div className="alert alert-info">
+              <p className="text-sm">
+                Document à déplacer : <span className="font-medium">{document.name}</span>
               </p>
             </div>
           )}
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Choisir le dossier de destination :
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Choisir le dossier de destination :</span>
             </label>
             
             {/* Option racine */}
             <div
-              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+              className={`card card-compact cursor-pointer transition-all ${
                 selectedFolderId === null
-                  ? 'bg-blue-50 border-2 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
-                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600'
+                  ? 'bg-primary/10 border-2 border-primary'
+                  : 'bg-base-200 border border-base-300 hover:bg-base-300'
               }`}
               onClick={() => setSelectedFolderId(null)}
             >
-              <Home className="h-5 w-5 text-gray-500" />
-              <span className="text-gray-900 dark:text-white">Racine (aucun dossier)</span>
+              <div className="card-body flex-row items-center gap-3">
+                <Home className="h-5 w-5 text-base-content/60" />
+                <span className="text-base-content">Racine (aucun dossier)</span>
+              </div>
             </div>
 
             {/* Liste des dossiers */}
-            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+            <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
               {folders.map((folder) => (
                 <div
                   key={folder.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                  className={`card card-compact cursor-pointer transition-all ${
                     selectedFolderId === folder.id
-                      ? 'bg-blue-50 border-2 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
-                      : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600'
+                      ? 'bg-primary/10 border-2 border-primary'
+                      : 'bg-base-200 border border-base-300 hover:bg-base-300'
                   }`}
                   onClick={() => setSelectedFolderId(folder.id)}
                 >
-                  <FolderIcon 
-                    className="h-5 w-5" 
-                    style={{ color: folder.color }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-900 dark:text-white truncate">
-                      {folder.name}
-                    </p>
-                    {folder.description && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {folder.description}
+                  <div className="card-body flex-row items-center gap-3">
+                    <FolderIcon 
+                      className="h-5 w-5 flex-shrink-0" 
+                      style={{ color: folder.color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base-content truncate">
+                        {folder.name}
                       </p>
-                    )}
+                      {folder.description && (
+                        <p className="text-xs text-base-content/60 truncate">
+                          {folder.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -122,22 +123,30 @@ export const MoveDocumentModal: React.FC<MoveDocumentModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="modal-action">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+            className="btn btn-ghost"
           >
             Annuler
           </button>
           <button
             onClick={handleMove}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="btn btn-primary"
           >
-            {loading ? 'Déplacement...' : 'Déplacer'}
+            {loading ? (
+              <>
+                <span className="loading loading-spinner loading-sm"></span>
+                Déplacement...
+              </>
+            ) : (
+              'Déplacer'
+            )}
           </button>
         </div>
       </div>
+      <div className="modal-backdrop" onClick={onClose}></div>
     </div>
   );
 };

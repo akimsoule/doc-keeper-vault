@@ -9,6 +9,12 @@ import { MoveDocumentModal } from './MoveDocumentModal';
 import { ConfirmModal } from './ConfirmModal';
 import { useFolders } from '../hooks/useFolders';
 import { LoadingSkeleton } from './Loading';
+import { FolderService } from '../services/api';
+import { tokenManager } from '../services/tokenManager';
+
+const folderService = new FolderService();
+// Enregistrer le service auprès du gestionnaire de tokens
+tokenManager.registerService(folderService);
 
 interface FolderViewProps {
   documents: Document[];
@@ -140,8 +146,7 @@ export const FolderView: React.FC<FolderViewProps> = ({
   const handleConfirmMoveDocument = async (documentId: string, folderId: string | null) => {
     try {
       // Utiliser l'API service pour déplacer le document
-      const apiService = await import('../services/apiService');
-      await apiService.default.moveDocumentToFolder(documentId, folderId || undefined);
+      await folderService.moveDocumentToFolder(documentId, folderId || undefined);
       
       // Recharger les documents (via le parent)
       onDocumentUpdate(documentToMove!);
@@ -160,58 +165,63 @@ export const FolderView: React.FC<FolderViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+        <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
           {currentFolder && (
             <button
               onClick={handleBackToParent}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+              className="btn btn-outline btn-sm gap-1 sm:gap-2 flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
-              Retour
+              <span className="hidden sm:inline">Retour</span>
             </button>
           )}
           
-          <BreadcrumbNavigation
-            path={breadcrumbPath}
-            onNavigate={handleNavigate}
-          />
+          <div className="min-w-0 flex-1">
+            <BreadcrumbNavigation
+              path={breadcrumbPath}
+              onNavigate={handleNavigate}
+            />
+          </div>
         </div>
 
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="btn btn-primary btn-sm gap-1 sm:gap-2 flex-shrink-0 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
-          Nouveau dossier
+          <span className="sm:hidden">Nouveau</span>
+          <span className="hidden sm:inline">Nouveau dossier</span>
         </button>
       </div>
 
       {/* Titre du dossier courant */}
       {currentFolder && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center gap-4">
-            <div
-              className="p-3 rounded-lg"
-              style={{ backgroundColor: `${currentFolder.color}20` }}
-            >
-              <FolderIcon
-                className="h-8 w-8"
-                style={{ color: currentFolder.color }}
-              />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {currentFolder.name}
-              </h1>
-              {currentFolder.description && (
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  {currentFolder.description}
-                </p>
-              )}
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                <span>{currentFolder.documentCount} documents</span>
-                <span>{currentFolder.folderCount} dossiers</span>
+        <div className="card bg-base-100 shadow-sm border border-base-300">
+          <div className="card-body p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <div
+                className="p-2 sm:p-3 rounded-lg flex-shrink-0"
+                style={{ backgroundColor: `${currentFolder.color}20` }}
+              >
+                <FolderIcon
+                  className="h-6 w-6 sm:h-8 sm:w-8"
+                  style={{ color: currentFolder.color }}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-base-content">
+                  {currentFolder.name}
+                </h1>
+                {currentFolder.description && (
+                  <p className="text-base-content/70 mt-1 text-sm sm:text-base">
+                    {currentFolder.description}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-base-content/60">
+                  <span>{currentFolder.documentCount} documents</span>
+                  <span>{currentFolder.folderCount} dossiers</span>
+                </div>
               </div>
             </div>
           </div>
@@ -224,14 +234,14 @@ export const FolderView: React.FC<FolderViewProps> = ({
         {folders.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <FolderIcon className="h-5 w-5 text-gray-500" />
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+              <FolderIcon className="h-5 w-5 text-base-content/60" />
+              <h2 className="text-lg font-medium text-base-content">
                 Dossiers ({folders.length})
               </h2>
             </div>
             <div className={`${
               viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
                 : "space-y-3"
             }`}>
               {folders.map((folder) => (
@@ -252,14 +262,14 @@ export const FolderView: React.FC<FolderViewProps> = ({
         {currentFolderDocuments.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <FileText className="h-5 w-5 text-gray-500" />
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+              <FileText className="h-5 w-5 text-base-content/60" />
+              <h2 className="text-lg font-medium text-base-content">
                 Documents ({currentFolderDocuments.length})
               </h2>
             </div>
             <div className={`${
               viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
                 : "space-y-3"
             }`}>
               {currentFolderDocuments.map((document) => (
@@ -279,10 +289,10 @@ export const FolderView: React.FC<FolderViewProps> = ({
                   {/* Bouton de déplacement en overlay */}
                   <button
                     onClick={() => handleMoveDocument(document)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-full p-2 shadow-sm hover:shadow-md z-10"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity btn btn-sm btn-circle bg-base-100 border-base-300 shadow-sm hover:shadow-md z-10"
                     title="Déplacer vers un dossier"
                   >
-                    <FolderInput className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                    <FolderInput className="h-4 w-4 text-base-content/60" />
                   </button>
                 </div>
               ))}
@@ -293,11 +303,11 @@ export const FolderView: React.FC<FolderViewProps> = ({
         {/* Message vide */}
         {folders.length === 0 && currentFolderDocuments.length === 0 && (
           <div className="text-center py-12">
-            <FolderIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            <FolderIcon className="h-12 w-12 text-base-content/40 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-base-content mb-2">
               {currentFolder ? 'Dossier vide' : 'Aucun dossier'}
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+            <p className="text-base-content/60 mb-4">
               {currentFolder 
                 ? 'Ce dossier ne contient aucun document ni sous-dossier.'
                 : 'Commencez par créer votre premier dossier pour organiser vos documents.'
@@ -305,7 +315,7 @@ export const FolderView: React.FC<FolderViewProps> = ({
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400"
+              className="btn btn-primary btn-sm gap-2"
             >
               <Plus className="h-4 w-4" />
               Créer un dossier
@@ -348,11 +358,13 @@ export const FolderView: React.FC<FolderViewProps> = ({
 
       {/* Loading overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-40">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="text-gray-900 dark:text-white">Chargement...</span>
+        <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-40">
+          <div className="card bg-base-100 shadow-lg">
+            <div className="card-body">
+              <div className="flex items-center gap-3">
+                <span className="loading loading-spinner loading-md text-primary"></span>
+                <span className="text-base-content">Chargement...</span>
+              </div>
             </div>
           </div>
         </div>

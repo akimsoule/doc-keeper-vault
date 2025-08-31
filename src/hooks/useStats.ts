@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import apiService from '../services/apiService';
+import { SearchService } from '../services/api';
+import { tokenManager } from '../services/tokenManager';
 import { Activity } from '../types';
+
+const searchService = new SearchService();
+// Enregistrer le service auprès du gestionnaire de tokens
+tokenManager.registerService(searchService);
 
 export interface StatsData {
   totalDocuments: number;
@@ -76,7 +81,7 @@ export const useStats = (options: UseStatsOptions = {}): UseStatsResult => {
     setError(null);
     
     try {
-      const response = await apiService.getStats();
+      const response = await searchService.getStats();
       const convertedStats = convertApiStatsToStatsData(response);
       setStats(convertedStats);
     } catch (err) {
@@ -96,7 +101,7 @@ export const useStats = (options: UseStatsOptions = {}): UseStatsResult => {
     setError(null);
     
     try {
-      const activities = await apiService.getRecentActivities(limit);
+      const activities = await searchService.getRecentActivities(limit);
       setRecentActivities(activities);
     } catch (err) {
       console.error('Erreur lors du chargement des activités récentes:', err);

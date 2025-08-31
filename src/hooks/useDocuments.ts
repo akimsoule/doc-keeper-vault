@@ -1,8 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Document } from '../types';
-import apiService from '../services/apiService';
+import { DocumentService, SearchService } from '../services/api';
+import { tokenManager } from '../services/tokenManager';
 import { useUserPreferences } from './useUserPreferences';
 import { addArchivedTag, removeArchivedTag } from '../utils/tags';
+
+const documentService = new DocumentService();
+const searchService = new SearchService();
+// Enregistrer les services auprès du gestionnaire de tokens
+tokenManager.registerService(documentService);
+tokenManager.registerService(searchService);
 
 interface UseDocumentsOptions {
   autoLoad?: boolean;
@@ -109,7 +116,7 @@ export const useDocuments = (
       if (tag) params.tag = tag;
       if (searchQuery) params.search = searchQuery;
 
-      const response = await apiService.getDocuments(params);
+      const response = await documentService.getDocuments(params);
       
       setDocuments(response.documents);
       setTotal(response.total);
@@ -147,7 +154,7 @@ export const useDocuments = (
       setError(null);
 
       try {
-        const newDocument = await apiService.createDocument(data);
+        const newDocument = await documentService.createDocument(data);
 
         // Ajouter le nouveau document à la liste
         setDocuments((prev) => [newDocument, ...prev]);
@@ -184,7 +191,7 @@ export const useDocuments = (
       setError(null);
 
       try {
-        const newDocument = await apiService.uploadDocument(file, data);
+        const newDocument = await documentService.uploadDocument(file, data);
 
         // Ajouter le nouveau document à la liste
         setDocuments((prev) => [newDocument, ...prev]);
@@ -234,7 +241,7 @@ export const useDocuments = (
 
       // Faire le call pour mettre à jour le document en bd
       try {
-        const updatedDocument = await apiService.updateDocument(id, data);
+        const updatedDocument = await documentService.updateDocument(id, data);
 
         // Mettre à jour avec les données du serveur
         setDocuments((prev) => {
@@ -268,7 +275,7 @@ export const useDocuments = (
     setError(null);
 
     try {
-      await apiService.deleteDocument(id);
+      await documentService.deleteDocument(id);
 
       // Supprimer le document de la liste
       setDocuments((prev) => prev.filter((doc) => doc.id !== id));
@@ -294,7 +301,7 @@ export const useDocuments = (
       setError(null);
 
       try {
-        const response = await apiService.search(query, {
+        const response = await searchService.search(query, {
           limit: currentLimit,
           category,
           tag,
@@ -335,7 +342,7 @@ export const useDocuments = (
 
       const newTags = addArchivedTag(currentDoc.tags);
       
-      await apiService.updateDocument(id, {
+      await documentService.updateDocument(id, {
         tags: newTags,
       });
 
@@ -372,7 +379,7 @@ export const useDocuments = (
 
         const newTags = removeArchivedTag(currentDoc.tags);
         
-        await apiService.updateDocument(id, {
+        await documentService.updateDocument(id, {
           tags: newTags,
         });
 

@@ -1,7 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Document } from '../types';
-import apiService from '../services/apiService';
+import { SearchService } from '../services/api';
+import { tokenManager } from '../services/tokenManager';
 import { useLocalStorage } from './useLocalStorage';
+
+const searchService = new SearchService();
+// Enregistrer le service auprès du gestionnaire de tokens
+tokenManager.registerService(searchService);
 
 interface SearchResult {
   query: string;
@@ -107,7 +112,7 @@ export const useSearch = (options: UseSearchOptions = {}): UseSearchResult => {
       setError(null);
 
       try {
-        const response = await apiService.search(query);
+        const response = await searchService.search(query);
         
         const result: SearchResult = {
           query,
@@ -135,7 +140,7 @@ export const useSearch = (options: UseSearchOptions = {}): UseSearchResult => {
     setError(null);
 
     try {
-      const response = await apiService.advancedSearch(criteria);
+      const response = await searchService.advancedSearch(criteria);
       
       const result: SearchResult = {
         query: criteria.query || 'Recherche avancée',

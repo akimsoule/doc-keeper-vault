@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { FolderPath } from '../types';
 
 interface BreadcrumbNavigationProps {
@@ -14,35 +14,36 @@ export const BreadcrumbNavigation: React.FC<BreadcrumbNavigationProps> = ({
   className = '',
 }) => {
   return (
-    <nav
-      className={`flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400 ${className}`}
-      aria-label="Navigation du dossier"
-    >
-      {/* Racine */}
-      <button
-        onClick={() => onNavigate(null)}
-        className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-      >
-        <Home className="h-4 w-4" />
-        <span>Racine</span>
-      </button>
-
-      {/* Séparateur et chemin */}
-      {path.map((folder, index) => (
-        <React.Fragment key={folder.id}>
-          <ChevronRight className="h-4 w-4 text-gray-400" />
+    <div className={`breadcrumbs text-sm text-base-content/60 min-w-0 ${className}`}>
+      <ul className="flex-wrap">
+        {/* Racine */}
+        <li>
           <button
-            onClick={() => onNavigate(folder.id)}
-            className={`px-2 py-1 rounded-md transition-colors ${
-              index === path.length - 1
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
+            onClick={() => onNavigate(null)}
+            className="btn btn-ghost btn-xs gap-1 normal-case text-base-content/60 hover:text-base-content"
           >
-            {folder.name}
+            <Home className="h-3 w-3" />
+            <span className="hidden sm:inline">Racine</span>
           </button>
-        </React.Fragment>
-      ))}
-    </nav>
+        </li>
+
+        {/* Chemin */}
+        {path.map((folder, index) => (
+          <li key={folder.id}>
+            <button
+              onClick={() => onNavigate(folder.id)}
+              className={`btn btn-ghost btn-xs normal-case truncate max-w-[120px] sm:max-w-none ${
+                index === path.length - 1
+                  ? 'text-primary font-medium'
+                  : 'text-base-content/60 hover:text-base-content'
+              }`}
+              title={folder.name}
+            >
+              {folder.name}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 };

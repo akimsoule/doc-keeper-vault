@@ -1,6 +1,11 @@
 import { useState, useCallback } from 'react';
-import apiService from '../services/apiService';
+import { DocumentService } from '../services/api';
+import { tokenManager } from '../services/tokenManager';
 import toast from 'react-hot-toast';
+
+const documentService = new DocumentService();
+// Enregistrer le service auprès du gestionnaire de tokens
+tokenManager.registerService(documentService);
 
 export interface SyncResult {
   syncedCount: number;
@@ -44,7 +49,7 @@ export const useMegaSync = (): UseMegaSyncResult => {
     setError(null);
     
     try {
-      const result = await apiService.syncMegaFiles(folderId);
+      const result = await documentService.syncMegaFiles(folderId);
       
       setLastSyncResult(result);
       
