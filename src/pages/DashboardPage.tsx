@@ -1,51 +1,57 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Files, BarChart3, HelpCircle, Cloud, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { SearchBar } from '../components/SearchBar';
-import { TagFilter } from '../components/TagFilter';
-import { DocumentCard } from '../components/DocumentCard';
-import { UploadArea } from '../components/UploadArea';
-import { ViewControls } from '../components/ViewControls';
-import { DocumentPreviewModal } from '../components/DocumentPreviewModal';
-import { Pagination } from '../components/Pagination';
-import { ErrorMessage } from '../components/ErrorBoundary';
-import { LoadingSkeleton } from '../components/Loading';
-import { KeyboardShortcutsHelp } from '../components/SwipeGesture';
-import { useDocuments } from '../hooks/useDocuments';
-import { useViewMode } from '../hooks/useViewMode';
-import { useErrorHandler } from '../hooks/useErrorHandler';
-import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
-import { useMegaSync } from '../hooks/useMegaSync';
-import { Document as DocumentType } from '../types';
-import apiService from '../services/apiService';
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { Files, BarChart3, HelpCircle, Cloud, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
+import { SearchBar } from "../components/SearchBar";
+import { TagFilter } from "../components/TagFilter";
+import { DocumentCard } from "../components/DocumentCard";
+import { UploadArea } from "../components/UploadArea";
+import { ViewControls } from "../components/ViewControls";
+import { DocumentPreviewModal } from "../components/DocumentPreviewModal";
+import { Pagination } from "../components/Pagination";
+import { ErrorMessage } from "../components/ErrorBoundary";
+import { LoadingSkeleton } from "../components/Loading";
+import { KeyboardShortcutsHelp } from "../components/SwipeGesture";
+import { useDocuments } from "../hooks/useDocuments";
+import { useViewMode } from "../hooks/useViewMode";
+import { useErrorHandler } from "../hooks/useErrorHandler";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { useMegaSync } from "../hooks/useMegaSync";
+import { Document as DocumentType } from "../types";
+import {
+  isDocumentArchived,
+  addArchivedTag,
+  removeArchivedTag,
+} from "../utils/tags";
+import apiService from "../services/apiService";
 
 export const DashboardPage = () => {
   // Hook pour gérer le mode de vue avec localStorage
   const { viewMode, setViewMode } = useViewMode();
-  
+
   // Hook pour gérer les erreurs
   const { handleError } = useErrorHandler();
-  
+
   // Hook pour la synchronisation MEGA
   const { isSyncing, syncMegaFiles } = useMegaSync();
-  
+
   // État de l'application
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
-  const [includeArchived, setIncludeArchived] = useState(false);
   const [archivedCount, setArchivedCount] = useState(0);
-  const [allNonArchivedDocuments, setAllNonArchivedDocuments] = useState<DocumentType[]>([]);
+  const [allNonArchivedDocuments, setAllNonArchivedDocuments] = useState<
+    DocumentType[]
+  >([]);
   const [confirmDelete, setConfirmDelete] = useState<{
     show: boolean;
     documentId: string;
     documentName: string;
   }>({
     show: false,
-    documentId: '',
-    documentName: '',
+    documentId: "",
+    documentName: "",
   });
 
   const [previewModal, setPreviewModal] = useState<{
@@ -80,47 +86,59 @@ export const DashboardPage = () => {
   } = useDocuments({
     autoLoad: true,
     searchQuery: searchTerm,
-    // Ne pas filtrer par tag côté serveur pour permettre le filtrage multiple côté client
-    includeArchived: selectedTags.includes('archive') ? true : includeArchived,
-    onlyArchived: selectedTags.includes('archive'),
+    // Si le tag "archived" est sélectionné, filtrer spécifiquement par ce tag
+    tag: selectedTags.includes("archived") ? "archived" : undefined,
   });
 
   // Fonction helper pour les toasts
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning') => {
-    switch (type) {
-      case 'success':
-        toast.success(message);
-        break;
-      case 'error':
-        toast.error(message);
-        break;
-      case 'info':
-        toast(message);
-        break;
-      case 'warning':
-        toast(message, { icon: '⚠️' });
-        break;
-    }
-  }, []);
+  const showToast = useCallback(
+    (message: string, type: "success" | "error" | "info" | "warning") => {
+      switch (type) {
+        case "success":
+          toast.success(message);
+          break;
+        case "error":
+          toast.error(message);
+          break;
+        case "info":
+          toast(message);
+          break;
+        case "warning":
+          toast(message, { icon: "⚠️" });
+          break;
+      }
+    },
+    []
+  );
 
   // Fonction pour charger le nombre de documents archivés
   const loadArchivedCount = useCallback(async () => {
     try {
       // Compter les documents archivés
+      // Récupérer les documents archivés en utilisant le tag "archived"
       const archivedResponse = await apiService.getDocuments({
         page: 1,
         limit: 1000, // Prendre un grand nombre pour compter
-        includeArchived: true
+        tag: "archived",
       });
-      
-      const archived = archivedResponse.documents.filter(doc => doc.archived);
-      setArchivedCount(archived.length);
-      
-      // Calculer aussi le total des documents non archivés (pour le bouton "Tous")
-      const nonArchived = archivedResponse.documents.filter(doc => !doc.archived);
-      setAllNonArchivedDocuments(nonArchived);
+
+      setArchivedCount(archivedResponse.total);
+
+      // Récupérer aussi tous les documents pour calculer le total non archivé
+      const allResponse = await apiService.getDocuments({
+        page: 1,
+        limit: 1000,
+      });
+
+      const nonArchivedDocuments = allResponse.documents.filter(
+        (doc) => !isDocumentArchived(doc)
+      );
+      setAllNonArchivedDocuments(nonArchivedDocuments);
     } catch (error) {
-      console.error('Erreur lors du chargement du nombre de documents archivés:', error);
+      console.error(
+        "Erreur lors du chargement du nombre de documents archivés:",
+        error
+      );
     }
   }, []);
 
@@ -130,26 +148,26 @@ export const DashboardPage = () => {
   }, [loadArchivedCount]);
 
   // Fonctions helper pour les catégories
-    const getTagColor = useCallback((tag: string): string => {
+  const getTagColor = useCallback((tag: string): string => {
     const colors: { [key: string]: string } = {
-      'archive': '#9CA3AF',
-      'travail': '#3B82F6',
-      'personnel': '#10B981',
-      'important': '#EF4444',
-      'finance': '#F59E0B',
-      'santé': '#8B5CF6',
-      'administration': '#6B7280',
-      'projet': '#06B6D4',
-      'formation': '#84CC16',
-      'juridique': '#F97316',
+      archive: "#9CA3AF",
+      travail: "#3B82F6",
+      personnel: "#10B981",
+      important: "#EF4444",
+      finance: "#F59E0B",
+      santé: "#8B5CF6",
+      administration: "#6B7280",
+      projet: "#06B6D4",
+      formation: "#84CC16",
+      juridique: "#F97316",
     };
-    return colors[tag.toLowerCase()] || '#6B7280';
+    return colors[tag.toLowerCase()] || "#6B7280";
   }, []);
 
   // Fonction de synchronisation MEGA avec useCallback
   const handleSyncMega = useCallback(async () => {
     const result = await syncMegaFiles();
-    
+
     if (result) {
       // Recharger les documents après la synchronisation réussie
       await loadDocuments();
@@ -160,53 +178,56 @@ export const DashboardPage = () => {
   const { tagsWithCount } = useMemo(() => {
     // Utiliser allNonArchivedDocuments pour calculer les tags (pas documents qui varie selon la vue)
     const documentsForTags = allNonArchivedDocuments;
-    
+
     // Protection contre undefined/null
     if (!Array.isArray(documentsForTags)) {
       return { tagsWithCount: [] };
     }
-    
+
     // Calculer les tags à partir des documents NON ARCHIVÉS
     const tagMap = new Map<string, number>();
-    documentsForTags.forEach(doc => {
+    documentsForTags.forEach((doc) => {
       if (doc.tags && Array.isArray(doc.tags)) {
-        doc.tags.forEach(tag => {
+        doc.tags.forEach((tag) => {
           tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
         });
       }
     });
 
-    const dynamicTags = Array.from(tagMap.entries()).map(([name, count]) => ({
-      name,
-      count,
-      color: getTagColor(name),
-    }));
-    
-    // Ajouter le tag Archive (test avec compteur fixe)
+    const dynamicTags = [];
+
     if (archivedCount > 0) {
       dynamicTags.push({
-        name: 'archive',
+        name: "archived",
         count: archivedCount,
-        color: getTagColor('archive'),
+        color: getTagColor("archived"),
       });
     }
-    
+
+    dynamicTags.push(
+      ...Array.from(tagMap.entries()).map(([name, count]) => ({
+        name,
+        count,
+        color: getTagColor(name),
+      }))
+    );
+
+    // Ajouter le tag archived (documents archivés)
+
     return { tagsWithCount: dynamicTags };
   }, [allNonArchivedDocuments, archivedCount, getTagColor]);
 
   // Filtrage côté client des documents par tags sélectionnés
   const filteredDocuments = useMemo(() => {
     if (!Array.isArray(documents)) return [];
-    
+
     // Si aucun tag sélectionné, retourner tous les documents
     if (selectedTags.length === 0) return documents;
-    
+
     // Filtrer par tags sélectionnés (ET logique : le document doit avoir TOUS les tags sélectionnés)
-    return documents.filter(doc => {
+    return documents.filter((doc) => {
       const docTags = doc.tags || [];
-      return selectedTags.every(selectedTag => 
-        docTags.includes(selectedTag)
-      );
+      return selectedTags.every((selectedTag) => docTags.includes(selectedTag));
     });
   }, [documents, selectedTags]);
 
@@ -218,33 +239,45 @@ export const DashboardPage = () => {
   }, [searchTerm, selectedTags, goToPage, currentPage]);
 
   // Configuration des raccourcis clavier
-  const keyboardShortcuts = useMemo(() => ({
-    'ctrl+k': () => {
-      // Focus sur la barre de recherche
-      const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
-      if (searchInput) {
-        searchInput.focus();
-        searchInput.select();
-      }
-    },
-    'ctrl+f': () => setShowFilters(!showFilters),
-    'ctrl+g': () => setViewMode(viewMode === 'grid' ? 'list' : 'grid'),
-    'ctrl+r': () => loadDocuments(),
-    'ctrl+shift+s': () => {
-      // Raccourci pour synchroniser avec MEGA
-      if (!isSyncing) {
-        handleSyncMega();
-      }
-    },
-    'escape': () => {
-      setSearchTerm('');
-      setSelectedTags([]);
-      setShowFilters(false);
-      setShowKeyboardHelp(false);
-    },
-    'ctrl+?': () => setShowKeyboardHelp(true),
-    'f1': () => setShowKeyboardHelp(true),
-  }), [showFilters, setViewMode, viewMode, loadDocuments, isSyncing, handleSyncMega]);
+  const keyboardShortcuts = useMemo(
+    () => ({
+      "ctrl+k": () => {
+        // Focus sur la barre de recherche
+        const searchInput = document.querySelector(
+          'input[type="text"]'
+        ) as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      },
+      "ctrl+f": () => setShowFilters(!showFilters),
+      "ctrl+g": () => setViewMode(viewMode === "grid" ? "list" : "grid"),
+      "ctrl+r": () => loadDocuments(),
+      "ctrl+shift+s": () => {
+        // Raccourci pour synchroniser avec MEGA
+        if (!isSyncing) {
+          handleSyncMega();
+        }
+      },
+      escape: () => {
+        setSearchTerm("");
+        setSelectedTags([]);
+        setShowFilters(false);
+        setShowKeyboardHelp(false);
+      },
+      "ctrl+?": () => setShowKeyboardHelp(true),
+      f1: () => setShowKeyboardHelp(true),
+    }),
+    [
+      showFilters,
+      setViewMode,
+      viewMode,
+      loadDocuments,
+      isSyncing,
+      handleSyncMega,
+    ]
+  );
 
   // Hook pour les raccourcis clavier
   useKeyboardShortcuts(keyboardShortcuts);
@@ -252,7 +285,7 @@ export const DashboardPage = () => {
   // Gestion des erreurs
   useEffect(() => {
     if (documentsError) {
-      showToast(documentsError, 'error');
+      showToast(documentsError, "error");
       clearDocumentsError();
     }
   }, [documentsError, showToast, clearDocumentsError]);
@@ -261,8 +294,8 @@ export const DashboardPage = () => {
   const handleToggleFavorite = async (id: string) => {
     // Protection contre undefined/null
     if (!Array.isArray(documents)) return;
-    
-    const document = documents.find(doc => doc.id === id);
+
+    const document = documents.find((doc) => doc.id === id);
     if (!document) return;
 
     const success = await updateDocument(id, {
@@ -271,8 +304,10 @@ export const DashboardPage = () => {
 
     if (success) {
       showToast(
-        document.favorite ? 'Document retiré des favoris' : 'Document ajouté aux favoris',
-        'success'
+        document.favorite
+          ? "Document retiré des favoris"
+          : "Document ajouté aux favoris",
+        "success"
       );
     }
   };
@@ -280,26 +315,30 @@ export const DashboardPage = () => {
   const handleUpdateTags = async (id: string, tags: string[]) => {
     try {
       await apiService.updateDocument(id, { tags });
-      
+
       // Actualiser la liste des documents
       await loadDocuments();
-      
+
       // Mettre à jour le document dans le modal si c'est le même
       if (previewModal.fullDocument?.id === id) {
-        const updatedDocument = documents.find(doc => doc.id === id);
+        const updatedDocument = documents.find((doc) => doc.id === id);
         if (updatedDocument) {
-          setPreviewModal(prev => ({
+          setPreviewModal((prev) => ({
             ...prev,
-            fullDocument: updatedDocument
+            fullDocument: updatedDocument,
           }));
         }
       }
-      
-      showToast('Tags mis à jour avec succès', 'success');
+
+      showToast("Tags mis à jour avec succès", "success");
     } catch (error) {
-      console.error('Erreur lors de la mise à jour des tags:', error);
-      showToast('Erreur lors de la mise à jour des tags', 'error');
-      handleError(error instanceof Error ? error : new Error('Erreur lors de la mise à jour des tags'));
+      console.error("Erreur lors de la mise à jour des tags:", error);
+      showToast("Erreur lors de la mise à jour des tags", "error");
+      handleError(
+        error instanceof Error
+          ? error
+          : new Error("Erreur lors de la mise à jour des tags")
+      );
     }
   };
 
@@ -309,10 +348,10 @@ export const DashboardPage = () => {
       // Pour l'instant, on copie le lien vers le presse-papier
       const url = `${window.location.origin}/document/${id}`;
       await navigator.clipboard.writeText(url);
-      showToast('Lien copié dans le presse-papier', 'success');
+      showToast("Lien copié dans le presse-papier", "success");
     } catch (error) {
-      console.error('Erreur lors du partage:', error);
-      showToast('Erreur lors du partage', 'error');
+      console.error("Erreur lors du partage:", error);
+      showToast("Erreur lors du partage", "error");
     }
   };
 
@@ -320,7 +359,7 @@ export const DashboardPage = () => {
     const success = await deleteDocument(id);
     if (success) {
       closePreviewModal();
-      showToast('Document supprimé avec succès', 'success');
+      showToast("Document supprimé avec succès", "success");
     }
   };
 
@@ -329,12 +368,17 @@ export const DashboardPage = () => {
     if (success) {
       // Mettre à jour le document dans le modal
       if (previewModal.fullDocument?.id === id) {
-        setPreviewModal(prev => ({
+        setPreviewModal((prev) => ({
           ...prev,
-          fullDocument: prev.fullDocument ? { ...prev.fullDocument, archived: true } : null
+          fullDocument: prev.fullDocument
+            ? {
+                ...prev.fullDocument,
+                tags: addArchivedTag(prev.fullDocument.tags),
+              }
+            : null,
         }));
       }
-      showToast('Document archivé avec succès', 'success');
+      showToast("Document archivé avec succès", "success");
     }
   };
 
@@ -343,12 +387,17 @@ export const DashboardPage = () => {
     if (success) {
       // Mettre à jour le document dans le modal
       if (previewModal.fullDocument?.id === id) {
-        setPreviewModal(prev => ({
+        setPreviewModal((prev) => ({
           ...prev,
-          fullDocument: prev.fullDocument ? { ...prev.fullDocument, archived: false } : null
+          fullDocument: prev.fullDocument
+            ? {
+                ...prev.fullDocument,
+                tags: removeArchivedTag(prev.fullDocument.tags),
+              }
+            : null,
         }));
       }
-      showToast('Document désarchivé avec succès', 'success');
+      showToast("Document désarchivé avec succès", "success");
     }
   };
 
@@ -356,8 +405,8 @@ export const DashboardPage = () => {
     try {
       // Protection contre undefined/null
       if (!Array.isArray(documents)) return;
-      
-      const document = documents.find(doc => doc.id === id);
+
+      const document = documents.find((doc) => doc.id === id);
       if (!document) return;
 
       // Ouvrir le modal avec le document et commencer le chargement
@@ -367,7 +416,7 @@ export const DashboardPage = () => {
           id: document.id,
           name: document.name,
           type: document.type,
-          size: document.size
+          size: document.size,
         },
         fullDocument: document,
         fileData: null,
@@ -376,27 +425,34 @@ export const DashboardPage = () => {
 
       // Utiliser notre API backend pour obtenir le contenu du document
       const fileData = await apiService.downloadFile(id);
-      
+
       if (fileData.dataUrl) {
         // Mettre à jour le modal avec les données du fichier
-        setPreviewModal(prev => ({
+        setPreviewModal((prev) => ({
           ...prev,
           fileData: {
             dataUrl: fileData.dataUrl!,
-            type: fileData.type || 'unknown'
+            type: fileData.type || "unknown",
           },
           loading: false,
         }));
       } else {
-        setPreviewModal(prev => ({ ...prev, loading: false }));
-        showToast('Impossible d\'obtenir le contenu du document', 'error');
+        setPreviewModal((prev) => ({ ...prev, loading: false }));
+        showToast("Impossible d'obtenir le contenu du document", "error");
       }
     } catch (error) {
-      console.error('Erreur lors de l\'ouverture du document:', error);
-      setPreviewModal(prev => ({ ...prev, loading: false }));
-      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'ouverture du document';
-      showToast(errorMessage, 'error');
-      handleError(error instanceof Error ? error : new Error('Erreur lors de l\'ouverture du document'));
+      console.error("Erreur lors de l'ouverture du document:", error);
+      setPreviewModal((prev) => ({ ...prev, loading: false }));
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de l'ouverture du document";
+      showToast(errorMessage, "error");
+      handleError(
+        error instanceof Error
+          ? error
+          : new Error("Erreur lors de l'ouverture du document")
+      );
     }
   };
 
@@ -412,8 +468,11 @@ export const DashboardPage = () => {
 
   // Fonctions de navigation entre documents
   const getCurrentDocumentIndex = () => {
-    if (!previewModal.fullDocument || !Array.isArray(filteredDocuments)) return -1;
-    return filteredDocuments.findIndex(doc => doc.id === previewModal.fullDocument!.id);
+    if (!previewModal.fullDocument || !Array.isArray(filteredDocuments))
+      return -1;
+    return filteredDocuments.findIndex(
+      (doc) => doc.id === previewModal.fullDocument!.id
+    );
   };
 
   const handleNavigatePrevious = () => {
@@ -444,40 +503,49 @@ export const DashboardPage = () => {
 
   const confirmDeleteDocument = async () => {
     const success = await deleteDocument(confirmDelete.documentId);
-    
+
     if (success) {
-      showToast('Document supprimé avec succès', 'success');
+      showToast("Document supprimé avec succès", "success");
     }
-    
+
     setConfirmDelete({
       show: false,
-      documentId: '',
-      documentName: '',
+      documentId: "",
+      documentName: "",
     });
   };
 
   const handleFileUpload = async (files: FileList) => {
     const uploadPromises = Array.from(files).map(async (file) => {
       // Déterminer la catégorie en fonction du type de fichier
-      let category = 'autres';
-      if (file.type.startsWith('image/')) category = 'images';
-      else if (file.type.includes('pdf')) category = 'pdf';
-      else if (file.type.includes('word') || file.type.includes('document')) category = 'documents';
-      else if (file.type.includes('sheet') || file.type.includes('excel')) category = 'tableaux';
+      let category = "autres";
+      if (file.type.startsWith("image/")) category = "images";
+      else if (file.type.includes("pdf")) category = "pdf";
+      else if (file.type.includes("word") || file.type.includes("document"))
+        category = "documents";
+      else if (file.type.includes("sheet") || file.type.includes("excel"))
+        category = "tableaux";
 
       return uploadDocument(file, {
         category,
-        tags: ['nouveau'],
+        tags: ["nouveau"],
       });
     });
 
     try {
       await Promise.all(uploadPromises);
-      showToast(`${files.length} fichier(s) uploadé(s) avec succès`, 'success');
+      showToast(`${files.length} fichier(s) uploadé(s) avec succès`, "success");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'upload des fichiers';
-      showToast(errorMessage, 'error');
-      handleError(error instanceof Error ? error : new Error('Erreur lors de l\'upload des fichiers'));
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de l'upload des fichiers";
+      showToast(errorMessage, "error");
+      handleError(
+        error instanceof Error
+          ? error
+          : new Error("Erreur lors de l'upload des fichiers")
+      );
     }
   };
 
@@ -518,7 +586,7 @@ export const DashboardPage = () => {
               <Cloud className="w-4 h-4" />
             )}
             <span className="hidden sm:inline">
-              {isSyncing ? 'Synchronisation...' : 'Sync MEGA'}
+              {isSyncing ? "Synchronisation..." : "Sync MEGA"}
             </span>
           </button>
           <Link
@@ -555,20 +623,8 @@ export const DashboardPage = () => {
       )}
 
       {/* Archive Filter */}
-      {showFilters && !selectedTags.includes('archive') && (
-        <div className="mb-4 p-4 bg-base-200 rounded-lg">
-          <div className="form-control">
-            <label className="label cursor-pointer justify-start gap-3">
-              <input
-                type="checkbox"
-                className="checkbox checkbox-primary"
-                checked={includeArchived}
-                onChange={(e) => setIncludeArchived(e.target.checked)}
-              />
-              <span className="label-text">Inclure les documents archivés</span>
-            </label>
-          </div>
-        </div>
+      {showFilters && !selectedTags.includes("archive") && (
+        <div className="mb-4 p-4 bg-base-200 rounded-lg"></div>
       )}
 
       {/* View Controls */}
@@ -580,8 +636,8 @@ export const DashboardPage = () => {
 
       {/* Loading State */}
       {documentsLoading && (
-        <LoadingSkeleton 
-          type={viewMode === 'grid' ? 'card' : 'list'} 
+        <LoadingSkeleton
+          type={viewMode === "grid" ? "card" : "list"}
           count={6}
           className="mt-6"
         />
@@ -603,11 +659,13 @@ export const DashboardPage = () => {
       {!documentsLoading && (
         <>
           {filteredDocuments.length > 0 ? (
-            <div className={`${
-              viewMode === 'grid' 
-                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-                : 'space-y-3'
-            }`}>
+            <div
+              className={`${
+                viewMode === "grid"
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  : "space-y-3"
+              }`}
+            >
               {filteredDocuments.map((document) => (
                 <DocumentCard
                   key={document.id}
@@ -631,11 +689,12 @@ export const DashboardPage = () => {
                     Aucun document trouvé
                   </h3>
                   <p className="text-base-content/60 mb-6">
-                    Essayez de modifier vos critères de recherche ou ajoutez des documents.
+                    Essayez de modifier vos critères de recherche ou ajoutez des
+                    documents.
                   </p>
                   <button
                     onClick={() => {
-                      setSearchTerm('');
+                      setSearchTerm("");
                       setSelectedTags([]);
                       loadDocuments();
                     }}
@@ -667,7 +726,8 @@ export const DashboardPage = () => {
           <div className="modal-box">
             <h3 className="font-bold text-lg">Confirmer la suppression</h3>
             <p className="py-4">
-              Êtes-vous sûr de vouloir supprimer le document <strong>{confirmDelete.documentName}</strong> ?
+              Êtes-vous sûr de vouloir supprimer le document{" "}
+              <strong>{confirmDelete.documentName}</strong> ?
               <br />
               Cette action est irréversible.
             </p>
@@ -677,12 +737,20 @@ export const DashboardPage = () => {
                 onClick={confirmDeleteDocument}
                 disabled={documentsLoading}
               >
-                {documentsLoading && <span className="loading loading-spinner loading-sm"></span>}
+                {documentsLoading && (
+                  <span className="loading loading-spinner loading-sm"></span>
+                )}
                 Supprimer
               </button>
               <button
                 className="btn"
-                onClick={() => setConfirmDelete({ show: false, documentId: '', documentName: '' })}
+                onClick={() =>
+                  setConfirmDelete({
+                    show: false,
+                    documentId: "",
+                    documentName: "",
+                  })
+                }
               >
                 Annuler
               </button>
@@ -717,14 +785,17 @@ export const DashboardPage = () => {
         isVisible={showKeyboardHelp}
         onClose={() => setShowKeyboardHelp(false)}
         shortcuts={[
-          { key: 'Ctrl + K', description: 'Recherche rapide' },
-          { key: 'Ctrl + F', description: 'Afficher/masquer les filtres' },
-          { key: 'Ctrl + G', description: 'Basculer vue grille/liste' },
-          { key: 'Ctrl + R', description: 'Actualiser les documents' },
-          { key: 'Ctrl + Shift + S', description: 'Synchroniser avec MEGA' },
-          { key: 'Ctrl + ?', description: 'Afficher cette aide' },
-          { key: 'F1', description: 'Afficher cette aide' },
-          { key: 'Échap', description: 'Réinitialiser filtres et fermer modals' },
+          { key: "Ctrl + K", description: "Recherche rapide" },
+          { key: "Ctrl + F", description: "Afficher/masquer les filtres" },
+          { key: "Ctrl + G", description: "Basculer vue grille/liste" },
+          { key: "Ctrl + R", description: "Actualiser les documents" },
+          { key: "Ctrl + Shift + S", description: "Synchroniser avec MEGA" },
+          { key: "Ctrl + ?", description: "Afficher cette aide" },
+          { key: "F1", description: "Afficher cette aide" },
+          {
+            key: "Échap",
+            description: "Réinitialiser filtres et fermer modals",
+          },
         ]}
       />
     </>

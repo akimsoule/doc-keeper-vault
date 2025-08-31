@@ -28,26 +28,21 @@ export class TagService {
     // Récupérer tous les documents avec leurs tags
     const documents = await prisma.document.findMany({
       select: {
-        tags: true,
-        archived: true
+        tags: true
       }
     });
 
     // Compter les occurrences de chaque tag
-    const tagCounts = new Map<string, { total: number; archived: number }>();
+    const tagCounts = new Map<string, number>();
     
     documents.forEach(doc => {
       if (doc.tags && doc.tags.trim()) {
         const tags = doc.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
         tags.forEach(tag => {
           if (!tagCounts.has(tag)) {
-            tagCounts.set(tag, { total: 0, archived: 0 });
+            tagCounts.set(tag, 0);
           }
-          const current = tagCounts.get(tag)!;
-          current.total++;
-          if (doc.archived) {
-            current.archived++;
-          }
+          tagCounts.set(tag, tagCounts.get(tag)! + 1);
         });
       }
     });
@@ -59,9 +54,9 @@ export class TagService {
     ];
 
     return Array.from(tagCounts.entries())
-      .map(([name, counts], index) => ({
+      .map(([name, count], index) => ({
         name,
-        count: counts.total,
+        count,
         color: this.getTagColor(name, colorPalette, index)
       }))
       .sort((a, b) => b.count - a.count); // Trier par popularité

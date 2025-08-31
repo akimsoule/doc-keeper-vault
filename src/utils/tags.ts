@@ -2,15 +2,42 @@
  * Utilitaires pour les tags
  */
 
+import { Document } from '../types';
+
 export interface TagWithStats {
   name: string;
   count: number;
   color?: string;
 }
 
+/**
+ * Vérifie si un document est archivé (contient le tag "archived")
+ */
+export const isDocumentArchived = (document: Document): boolean => {
+  return document.tags.includes('archived');
+};
+
+/**
+ * Ajoute le tag "archived" à un document
+ */
+export const addArchivedTag = (tags: string[]): string[] => {
+  if (!tags.includes('archived')) {
+    return [...tags, 'archived'];
+  }
+  return tags;
+};
+
+/**
+ * Supprime le tag "archived" d'un document
+ */
+export const removeArchivedTag = (tags: string[]): string[] => {
+  return tags.filter(tag => tag !== 'archived');
+};
+
 export const getTagColor = (tag: string): string => {
   const colors: { [key: string]: string } = {
     'archive': '#9CA3AF',
+    'archived': '#9CA3AF',
     'travail': '#3B82F6',
     'personnel': '#10B981',
     'important': '#EF4444',

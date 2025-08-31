@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Download, FileText, Image, FileVideo, FileAudio, Archive, Star, Trash2, Share2, Tag, Plus, Check, ArchiveRestore, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatFileSize } from '../utils/formatters';
+import { isDocumentArchived } from '../utils/tags';
 import { Document } from '../types';
 
 interface DocumentPreviewModalProps {
@@ -437,7 +438,7 @@ export const DocumentPreviewModal = ({
                 )}
 
                 {/* Archiver/Désarchiver */}
-                {fullDocument.archived ? (
+                {isDocumentArchived(fullDocument) ? (
                   onUnarchive && (
                     <button
                       onClick={() => onUnarchive(fullDocument.id)}

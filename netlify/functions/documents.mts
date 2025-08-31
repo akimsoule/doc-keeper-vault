@@ -220,7 +220,6 @@ async function handleGetDocuments(url: URL, user: any) {
     const search = sanitizeString(url.searchParams.get("search") || "");
     const tag = sanitizeString(url.searchParams.get("tag") || "");
     const userId = sanitizeString(url.searchParams.get("userId") || "");
-    const includeArchived = url.searchParams.get("includeArchived") === "true";
 
     const pagination = validatePagination(url);
 
@@ -230,11 +229,6 @@ async function handleGetDocuments(url: URL, user: any) {
     if (search) filters.search = search;
     if (tag) filters.tag = tag;
     if (userId) filters.ownerId = userId;
-
-    // Par défaut, exclure les documents archivés
-    if (!includeArchived) {
-      filters.archived = false;
-    }
 
     const documents = await documentService.getAllDocuments(
       pagination.skip,
@@ -339,8 +333,6 @@ async function handleUpdateDocument(
     if (body.tags) updateData.tags = body.tags;
     if (typeof body.isFavorite === "boolean")
       updateData.isFavorite = body.isFavorite;
-    if (typeof body.archived === "boolean")
-      updateData.archived = body.archived;
 
     const updatedDocument = await documentService.updateDocument(
       documentId,

@@ -10,8 +10,6 @@ export interface Document {
   thumbnail?: string;
   favorite: boolean;
   shared: boolean;
-  archived: boolean;
-  archivedDate?: Date;
 }
 
 export interface Tag {

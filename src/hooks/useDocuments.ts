@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { Document } from "../types";
-import apiService from "../services/apiService";
-import { useUserPreferences } from "./useUserPreferences";
+import { useState, useCallback, useEffect } from 'react';
+import { Document } from '../types';
+import apiService from '../services/apiService';
+import { useUserPreferences } from './useUserPreferences';
+import { addArchivedTag, removeArchivedTag } from '../utils/tags';
 
 interface UseDocumentsOptions {
   autoLoad?: boolean;
@@ -10,8 +11,6 @@ interface UseDocumentsOptions {
   tag?: string;
   page?: number;
   limit?: number;
-  includeArchived?: boolean;
-  onlyArchived?: boolean;
 }
 
 interface UseDocumentsResult {
@@ -73,8 +72,6 @@ export const useDocuments = (
     tag,
     page = 1,
     limit = preferences.itemsPerPage || 20,
-    includeArchived = false,
-    onlyArchived = false,
   } = options;
 
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -101,13 +98,11 @@ export const useDocuments = (
         search?: string;
         sortBy?: string;
         sortOrder?: "asc" | "desc";
-        includeArchived?: boolean;
       } = {
         page: currentPage,
         limit: currentLimit,
         sortBy: preferences.sortBy || "date",
         sortOrder: preferences.sortOrder || "desc",
-        includeArchived: onlyArchived ? true : includeArchived, // Si onlyArchived, toujours inclure
       };
 
       if (category) params.category = category;
@@ -116,17 +111,8 @@ export const useDocuments = (
 
       const response = await apiService.getDocuments(params);
       
-      // Si onlyArchived est true, filtrer pour ne garder que les documents archivés
-      let filteredDocuments = response.documents;
-      let filteredTotal = response.total;
-      
-      if (onlyArchived) {
-        filteredDocuments = response.documents.filter(doc => doc.archived);
-        filteredTotal = filteredDocuments.length;
-      }
-      
-      setDocuments(filteredDocuments);
-      setTotal(filteredTotal);
+      setDocuments(response.documents);
+      setTotal(response.total);
       setCurrentPage(response.page);
     } catch (err) {
       console.error("Erreur lors du chargement des documents:", err);
@@ -145,8 +131,6 @@ export const useDocuments = (
     category,
     tag,
     searchQuery,
-    includeArchived,
-    onlyArchived,
     preferences.sortBy,
     preferences.sortOrder,
   ]);
@@ -339,14 +323,20 @@ export const useDocuments = (
     setDocuments((prev) =>
       prev.map((doc) =>
         doc.id === id
-          ? { ...doc, archived: true, archivedDate: new Date() }
+          ? { ...doc, tags: addArchivedTag(doc.tags) }
           : doc
       )
     );
 
     try {
+      // Récupérer le document actuel pour obtenir ses tags
+      const currentDoc = documents.find(doc => doc.id === id);
+      if (!currentDoc) throw new Error('Document non trouvé');
+
+      const newTags = addArchivedTag(currentDoc.tags);
+      
       await apiService.updateDocument(id, {
-        archived: true,
+        tags: newTags,
       });
 
       return true;
@@ -359,7 +349,7 @@ export const useDocuments = (
       );
       return false;
     }
-  }, []);
+  }, [documents]);
 
   // Fonction pour désarchiver un document
   const unarchiveDocument = useCallback(
@@ -370,14 +360,20 @@ export const useDocuments = (
       setDocuments((prev) =>
         prev.map((doc) =>
           doc.id === id
-            ? { ...doc, archived: false, archivedDate: undefined }
+            ? { ...doc, tags: removeArchivedTag(doc.tags) }
             : doc
         )
       );
 
       try {
+        // Récupérer le document actuel pour obtenir ses tags
+        const currentDoc = documents.find(doc => doc.id === id);
+        if (!currentDoc) throw new Error('Document non trouvé');
+
+        const newTags = removeArchivedTag(currentDoc.tags);
+        
         await apiService.updateDocument(id, {
-          archived: false,
+          tags: newTags,
         });
 
         return true;
@@ -391,7 +387,7 @@ export const useDocuments = (
         return false;
       }
     },
-    []
+    [documents]
   );
 
   // Fonction pour aller à une page spécifique
